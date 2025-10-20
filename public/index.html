@@ -76,6 +76,10 @@ function dccStop () {
     command.send(null);
 }
 
+function dccSortVehicle (a, b) {
+    return a.address > b.address;
+}
+
 function dccShowVehicles (response) {
 
    var table = document.getElementById ('vehicles');
@@ -85,9 +89,10 @@ function dccShowVehicles (response) {
    }
    if (!response.trains.vehicles) return;
 
-   for (var i = 0; i < response.trains.vehicles.length; i++) {
+   var vehicles = response.trains.vehicles.sort (dccSortVehicle);
+   for (var i = 0; i < vehicles.length; i++) {
 
-        var vehicle = response.trains.vehicles[i];
+        var vehicle = vehicles[i];
 
         var row = document.createElement("tr");
         row.className = "removeThisLine";
@@ -109,17 +114,24 @@ function dccShowVehicles (response) {
         row.appendChild(column);
 
         column = document.createElement("td");
-        var speed = 0;
-        if (vehicle.speed) speed = vehicle.speed;
-        if (speed < 0) column.innerHTML = 'reverse';
-        else if (speed > 0) column.innerHTML = 'forward';
-        else column.innerHTML = 'stopped';
+        if (vehicle.type == 'engine') {
+           var speed = vehicle.speed?vehicle.speed:0; // It might be missing.
+           if (speed < 0) column.innerHTML = 'reverse';
+           else if (speed > 0) column.innerHTML = 'forward';
+           else column.innerHTML = 'stopped';
+        } else {
+           column.innerHTML = '';
+        }
         row.appendChild(column);
 
         column = document.createElement("td");
-        var speed = Math.abs(vehicle.speed);
-        if (speed > 0) column.innerHTML = ''+speed;
-        else column.innerHTML = '';
+        if (vehicle.type == 'engine') {
+            var speed = vehicle.speed?Math.abs(vehicle.speed):0;
+            if (speed > 0) column.innerHTML = ''+speed;
+            else column.innerHTML = '';
+        } else {
+           column.innerHTML = '';
+        }
         row.appendChild(column);
 
         column = document.createElement("td");
@@ -134,13 +146,15 @@ function dccShowVehicles (response) {
         }
         row.appendChild(column);
 
-        column = document.createElement("td");
-        column.appendChild (newAction (vehicle.id, '&#x23F4',
-                                       dccDecreaseSpeed, vehicle.speed));
-        column.appendChild (newAction (vehicle.id, "Stop", dccStop, 0));
-        column.appendChild (newAction (vehicle.id, '&#x23F5',
-                                       dccIncreaseSpeed, vehicle.speed));
-        row.appendChild(column);
+        if (vehicle.type == 'engine') {
+            column = document.createElement("td");
+            column.appendChild (newAction (vehicle.id, '&#x25C0',
+                                           dccDecreaseSpeed, vehicle.speed));
+            column.appendChild (newAction (vehicle.id, "STOP", dccStop, 0));
+            column.appendChild (newAction (vehicle.id, '&#x25B6',
+                                           dccIncreaseSpeed, vehicle.speed));
+            row.appendChild(column);
+        }
 
         table.appendChild(row);
     }
