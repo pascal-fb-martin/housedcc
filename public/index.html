@@ -6,6 +6,35 @@
 
 var DccLastStatus = 0;
 
+function newOnOff (vehicle, text, command, state) {
+    var button = document.createElement("button");
+    button.innerHTML = text;
+    button.type = 'button';
+    button.disabled = false;
+    button.resourceId = vehicle;
+    button.resourceDevice = text;
+    button.resourceState = state;
+    if (state) {
+        button.style.backgroundColor = 'rgb(199,255,51)';
+        button.style.color = 'black';
+    }
+    button.onclick = command;
+    return button;
+}
+
+function dccSetDevice () {
+    var requested = this.resourceState?'off':'on';
+    var command = new XMLHttpRequest();
+    var url = "/dcc/fleet/set?id="+this.resourceId + "&device=" + this.resourceDevice + "&state=" + requested;
+    command.open("GET", url);
+    command.onreadystatechange = function () {
+        if (command.readyState === 4 && command.status === 200) {
+            dccShowStatus (JSON.parse(command.responseText));
+        }
+    }
+    command.send(null);
+}
+
 function dccShowVehicles (response) {
 
    var table = document.getElementById ('vehicles');
@@ -16,8 +45,8 @@ function dccShowVehicles (response) {
    if (!response.trains.vehicles) return;
 
    for (var i = 0; i < response.trains.vehicles.length; i++) {
+
         var vehicle = response.trains.vehicles[i];
-        var tag = vehicle.id.replace (/ /g,'-')
 
         var row = document.createElement("tr");
         row.className = "removeThisLine";
@@ -53,19 +82,15 @@ function dccShowVehicles (response) {
         row.appendChild(column);
 
         column = document.createElement("td");
-        var inner = '';
         if (vehicle.devices) {
-           var prefix = '';
            const entries = Object.entries(vehicle.devices);
            for (var j = 0; j < entries.length; ++j) {
-              if (entries[j][1])
-                 inner += prefix + '<strong>' + entries[j][0] + '</strong>';
-              else
-                 inner += prefix + entries[j][0];
-              prefix = ' ';
+              column.appendChild (newOnOff (vehicle.id,
+                                            entries[j][0],
+                                            dccSetDevice,
+                                            entries[j][1]));
            }
         }
-        column.innerHTML = inner;
         row.appendChild(column);
 
         table.appendChild(row);
