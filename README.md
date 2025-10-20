@@ -78,6 +78,7 @@ Stop all vehicles. (See the DCC command STOP ALL.) If urgent is 1 (true), all lo
 
 ```
 /dcc/fleet/vehicle/model?model=STRING&type=STRING[&devices=STRING:INTEGER[+STRING:INTEGER..]
+```
 
 Declare a new vehicle model, with an optional list of devices.
 
