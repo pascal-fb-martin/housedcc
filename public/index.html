@@ -41,14 +41,14 @@ function dccShowVehicles (response) {
         column = document.createElement("td");
         var speed = 0;
         if (vehicle.speed) speed = vehicle.speed;
-        if (speed < -3) column.innerHTML = 'reverse';
-        else if (speed > 3) column.innerHTML = 'forward';
+        if (speed < 0) column.innerHTML = 'reverse';
+        else if (speed > 0) column.innerHTML = 'forward';
         else column.innerHTML = 'stopped';
         row.appendChild(column);
 
         column = document.createElement("td");
         var speed = Math.abs(vehicle.speed);
-        if (speed > 3) column.innerHTML = ''+speed;
+        if (speed > 0) column.innerHTML = ''+speed;
         else column.innerHTML = '';
         row.appendChild(column);
 

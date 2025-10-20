@@ -29,6 +29,7 @@ void housedcc_consist_reload (void);
 int  housedcc_consist_export (char *buffer, int size, const char *prefix);
 
 int  housedcc_consist_move (const char *id, int speed);
+int  housedcc_consist_stop (const char *id, int emergency);
 void housedcc_consist_stopped (void);
 
 void housedcc_consist_periodic (time_t now);

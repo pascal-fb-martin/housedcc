@@ -81,6 +81,10 @@
  *    This function returns 1 if the ID exists (locomotive or consist),
  *    0 otherwise.
  *
+ * int housedcc_consist_stop (const char *id, int emergency);
+ *
+ *    Step the designed consist. If emergency is true, cut power immediately.
+ *
  * void housedcc_consist_stopped (void);
  *
  *    Tell this module that all vehicles were stopped (DCC STOP ALL)
@@ -141,6 +145,11 @@ void housedcc_consist_reload (void) {
 }
 
 int housedcc_consist_move (const char *id, int speed) {
+    // TBD
+    return 0;
+}
+
+int housedcc_consist_stop (const char *id, int emergency) {
     // TBD
     return 0;
 }

@@ -64,14 +64,18 @@
  *    Return 1 if a locomotive with that ID exists, 0 otherwise.
  *
  * int housedcc_fleet_move (const char *id, int speed);
- * int housedcc_fleet_set (const char *id, const char *name, int state);
+ * int housedcc_fleet_stop (const char *id, int emergency);
+ * int housedcc_fleet_set  (const char *id, const char *name, int state);
  *
  *    Control one locomotive's movements and devices. Typical devices are
  *    locomotive lights, sound, etc. The list of devices depend on the model
  *    of the locomotive.
  *
  *    A positive speed means forward movement, a negative speed means reverse
- *    movement, while a speed in the range [-1, 1] means stop.
+ *    movement, while a 0 speed means normal stop.
+ *
+ *    The explicit stop command has an emergency option to cut power
+ *    immediately. It is otherwise similar to speed 0.
  *
  *    These functions return 0 on error, 1 on success.
  *
@@ -316,10 +320,10 @@ int housedcc_fleet_move (const char *id, int speed) {
     else if (speed > 31) speed = 31;
 
     if (speed != Vehicles[cursor].speed) {
-       if (speed < -3)
+       if (speed < 0)
           houselog_event ("VEHICLE", Vehicles[cursor].id,
                           "REVERSE", "AT SPEED %d", abs(speed));
-       else if (speed > 3)
+       else if (speed > 0)
           houselog_event ("VEHICLE", Vehicles[cursor].id,
                           "FORWARD", "AT SPEED %d", speed);
        else
@@ -327,6 +331,15 @@ int housedcc_fleet_move (const char *id, int speed) {
     }
     Vehicles[cursor].speed = speed;
     return housedcc_pidcc_move (Vehicles[cursor].address, speed);
+}
+
+int housedcc_fleet_stop (const char *id, int emergency) {
+
+    int cursor = housedcc_fleet_find (id);
+    if (cursor < 0) return 0;
+
+    Vehicles[cursor].speed = 0;
+    return housedcc_pidcc_stop (Vehicles[cursor].address, emergency);
 }
 
 void housedcc_fleet_stopped (void) {

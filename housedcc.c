@@ -180,14 +180,34 @@ static const char *dcc_move (const char *method, const char *uri,
 static const char *dcc_stop (const char *method, const char *uri,
                              const char *data, int length) {
 
+    const char *id = echttp_parameter_get("id");
     const char *urgent = echttp_parameter_get("urgent");
 
-    if (! housedcc_pidcc_stop (urgent?atoi(urgent):0)) {
-        echttp_error (500, "DCC failure");
+    int emergency = urgent?atoi(urgent):0;
+
+    if (!id) {
+        if (! housedcc_pidcc_stop (0, emergency)) {
+            echttp_error (500, "DCC failure");
+            return "";
+        }
+        housedcc_fleet_stopped ();
+        housedcc_consist_stopped ();
+
+    } else if (isdigit(id[0])) {
+
+       if (! housedcc_pidcc_stop (atoi(id), emergency)) {
+            echttp_error (500, "DCC failure");
+            return "";
+       }
+
+    } else if (! housedcc_consist_stop (id, emergency)) {
+
+        if (! housedcc_fleet_stop (id, emergency)) {
+            echttp_error (404, "invalid ID");
+            return "";
+        }
     }
     dcc_changed();
-    housedcc_fleet_stopped ();
-    housedcc_consist_stopped ();
     return dcc_status (method, uri, data, length);
 }
 

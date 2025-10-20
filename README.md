@@ -71,10 +71,10 @@ Control the movement of a locomotive or train. A negative speed means reverse di
 Set the state of a vehicle's function device.
 
 ```
-/dcc/fleet/stop[?urgent=0|1
+/dcc/fleet/stop[?id=STRING][&urgent=0|1]
 ```
 
-Stop all vehicles. (See the DCC command STOP ALL.) If urgent is 1 (true), all locomotives and trains stop immediately.
+Stop the designated vehicle or train. If the id is not present, stop all vehicles (see the DCC command STOP ALL). If urgent is 1 (true), the stop is immediat. If urgent is 0 or not present, this is a normal stop (it follows the breaking curve).
 
 ```
 /dcc/fleet/vehicle/model?model=STRING&type=STRING[&devices=STRING:INTEGER[+STRING:INTEGER..]

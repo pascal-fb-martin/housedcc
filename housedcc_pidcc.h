@@ -26,7 +26,7 @@ void housedcc_pidcc_reload (void);
 int housedcc_pidcc_export (char *buffer, int size, const char *prefix);
 
 int housedcc_pidcc_move (int address, int speed);
-int housedcc_pidcc_stop (int emergency);
+int housedcc_pidcc_stop (int address, int emergency);
 int housedcc_pidcc_function (int address, int instruction);
 
 int housedcc_pidcc_accessory (int address, int device, int value);

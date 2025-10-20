@@ -50,10 +50,10 @@
  *
  *    Return <= 0 on error, >= 1 otherwise.
  *
- * int housedcc_pidcc_stop (int emergency);
+ * int housedcc_pidcc_stop (int address, int emergency);
  *
- *    Order all locomotives to stop. And emergency stop is immediate (e.g.
- *    not bound to a deceleration curve).
+ *    Order one or all locomotives to stop. And emergency stop is immediate
+ *    (e.g. not bound to a deceleration curve). Address 0 is all locomotives.
  *
  *    Return <= 0 on error, >= 1 otherwise.
  *
@@ -268,26 +268,37 @@ const char *housedcc_pidcc_initialize (int argc, const char **argv) {
 
 int housedcc_pidcc_move (int address, int speed) {
 
-    if (address >= 128) return 0; // Not supported yet.
+    static int speed2cssss[29] = {0,   0x2, 0x12, 0x3, 0x13,  //  0  1  2  3  4
+                                  0x4, 0x14, 0x5, 0x15, 0x6,  //  5  6  7  8  9
+                                  0x16, 0x7, 0x17, 0x8, 0x18, // 10 11 12 13 14
+                                  0x9, 0x19, 0xa, 0x1a, 0xb,  // 15 16 17 18 19
+                                  0x1b, 0xc, 0x1c, 0xd, 0x1d, // 20 21 22 23 24
+                                  0xe, 0x1e, 0xf, 0x1f};      // 25 26 27 28
+
+    if ((address <= 0) || (address >= 128)) return 0; // Not supported yet.
     if (PiDccState == '*') return 0; // Failed.
 
     char command[32];
     int dir = (speed > 0) ? 0x20 : 0;
     speed = abs(speed);
+    if (speed > 28) return 0; // Over the limit speed.
 
     int l = snprintf (command, sizeof(command), "send %d %d",
                       address & 0x7f,
-                      0x40 + dir + ((speed & 1) << 4) + ((speed >> 1) & 0x0f));
+                      0x40 + dir + (speed2cssss[speed] & 0x1f));
 
     return housedcc_pidcc_write (command, l);
 }
 
-int housedcc_pidcc_stop (int emergency) {
+int housedcc_pidcc_stop (int address, int emergency) {
 
-    if (PiDccState == '*') return 0; // Failed.
+    if ((address < 0) || (address >= 128)) return 0; // Not supported yet.
+    // No state check: a stop is a safety command.
 
     char command[32];
-    int l = snprintf (command, sizeof(command), "send 0 %d", emergency?1:0);
+    int l = snprintf (command, sizeof(command), "send %d %d",
+                      address & 0x7f, 0x40 + (emergency?1:0));
+
     return housedcc_pidcc_write (command, l);
 }
 
