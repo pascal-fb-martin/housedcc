@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel=stylesheet type="text/css" href="/house.css" title="House">
+<script>
+
+var DccLastStatus = 0;
+
+function dccShowVehicles (response) {
+
+   var table = document.getElementById ('vehicles');
+   var remove = document.getElementsByClassName ('removeThisLine');
+   while (remove.length > 0) {
+       table.removeChild(remove[0]);
+   }
+   if (!response.trains.vehicles) return;
+
+   for (var i = 0; i < response.trains.vehicles.length; i++) {
+        var vehicle = response.trains.vehicles[i];
+        var tag = vehicle.id.replace (/ /g,'-')
+
+        var row = document.createElement("tr");
+        row.className = "removeThisLine";
+
+        var column = document.createElement("td");
+        column.innerHTML = vehicle.id;
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        column.innerHTML = '' + vehicle.address;
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        column.innerHTML = vehicle.model?vehicle.model:'';
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        column.innerHTML = vehicle.type?vehicle.type:'';
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        var speed = 0;
+        if (vehicle.speed) speed = vehicle.speed;
+        if (speed < -3) column.innerHTML = 'reverse';
+        else if (speed > 3) column.innerHTML = 'forward';
+        else column.innerHTML = 'stopped';
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        var speed = Math.abs(vehicle.speed);
+        if (speed > 3) column.innerHTML = ''+speed;
+        else column.innerHTML = '';
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        var inner = '';
+        if (vehicle.devices) {
+           var prefix = '';
+           const entries = Object.entries(vehicle.devices);
+           for (var j = 0; j < entries.length; ++j) {
+              if (entries[j][1])
+                 inner += prefix + '<strong>' + entries[j][0] + '</strong>';
+              else
+                 inner += prefix + entries[j][0];
+              prefix = ' ';
+           }
+        }
+        column.innerHTML = inner;
+        row.appendChild(column);
+
+        table.appendChild(row);
+    }
+}
+
+function dccShowTrains (response) {
+    // TBD
+}
+
+function dccShowStatus (response) {
+   dccShowVehicles (response);
+   dccShowTrains (response);
+   DccLastStatus = response.trains.latest;
+}
+
+function dccStatus () {
+    var command = new XMLHttpRequest();
+    var url = "/dcc/fleet/status";
+    if (DccLastStatus) url += "?known=" + DccLastStatus;
+    command.open("GET", url);
+    command.onreadystatechange = function () {
+        if (command.readyState === 4 && command.status === 200) {
+            dccShowStatus (JSON.parse(command.responseText));
+        }
+    }
+    command.send(null);
+}
+
+window.onload = function() {
+   dccStatus();
+   setInterval (dccStatus, 1000);
+};
+</script>
+<head>
+   <title>Train Dashboard</title>
+</head>
+<body>
+   <table class="housetopcontainer">
+   <tr><td>
+   <table class="housetop">
+   <tr>
+   <td><span>Dashboard</span></td>
+   <td><a href="/dcc/events.html">Events</a></td>
+   <td><a href="/dcc/config.html">Config</a></td>
+   <td><a href="/dcc/capture.html">Capture</a></td>
+   </tr>
+   </table>
+   </td></tr>
+   </table>
+   <h1>Locomotives</h1>
+   <table id="vehicles" class="housewidetable" border="0">
+      <tr>
+         <th width="10%">ID</th>
+         <th width="5%">ADDRESS</th>
+         <th width="10%">MODEL</th>
+         <th width="10%">TYPE</th>
+         <th width="10%">DIRECTION</th>
+         <th width="5%">SPEED</th>
+         <th width="50%">DEVICES</th>
+      </tr>
+   </table>
+   <h1>Train Consists</h1>
+   <table id="trains" class="housewidetable" border="0">
+      <tr>
+         <th width="10%">ID</th>
+         <th width="5%">ADDRESS</th>
+         <th width="10%">DIRECTION</th>
+         <th width="5%">SPEED</th>
+         <th width="60%">VEHICLES</th>
+      </tr>
+   </table>
+</body>
+</html>
+

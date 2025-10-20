@@ -1,0 +1,19 @@
+[Unit]
+Description=the house model train control service
+After=network-online.target houseportal.service
+StartLimitIntervalSec=500
+StartLimitBurst=5
+
+[Service]
+Restart=on-failure
+RestartSec=50s
+Environment="HTTPOPTS=" "HOUSEOPTS=" "OTHEROPTS=" "OPTS="
+EnvironmentFile=-/etc/default/housegeneric
+EnvironmentFile=-/etc/default/housedcc
+EnvironmentFile=-/etc/sysconfig/housegeneric
+EnvironmentFile=-/etc/sysconfig/housedcc
+ExecStart=/usr/local/bin/housedcc $HTTPOPTS $HOUSEOPTS $OTHEROPTS $OPTS
+
+[Install]
+WantedBy=multi-user.target
+

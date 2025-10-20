@@ -1,0 +1,15 @@
+Source: housedcc
+Version: 1.6
+Section: Web servers
+Maintainer: Pascal Martin <pascal.fb.martin@gmail.com>
+Priority: optional
+Homepage: https://github.com/pascal-fb-martin/housedcc
+Standard-Version: 4.7.0
+Package: housedcc
+Architecture: {{arch}}
+Depends: houseportal,pidcc
+Description: A House service to control model train movements
+ HouseDCC is part of the train control serie of the House suite of web services.
+ .
+ HouseDCC provides web access to the PiDCC DCC signal generator.
+

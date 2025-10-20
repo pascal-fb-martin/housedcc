@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel=stylesheet type="text/css" href="/house.css" title="House">
+<script>
+
+var DccKnownConfig = 0;
+
+var index2Function = [null, "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "fl"];
+
+function getTag (category, name) {
+   return category + name.replace (/ /g,'-');
+}
+
+function newAction (text, command, id) {
+    var button = document.createElement("button");
+    button.innerHTML = text;
+    button.type = 'button';
+    button.disabled = false;
+    button.resourceId = id;
+    button.onclick = command;
+    return button;
+}
+
+function dccSortModels (a, b) {
+    return a.name < b.name;
+}
+
+function dccShowGpio (gpio) {
+    document.getElementById ('gpioa').value = gpio[0];
+    document.getElementById ('gpiob').value = gpio[1];
+}
+
+function dccShowModels (models) {
+
+    var table = document.getElementById ('modellist');
+    for (var i = table.rows.length - 1; i > 1; --i) {
+       table.deleteRow(i);
+    }
+
+    var sorted = models.sort(dccSortModels);
+    for (var i = sorted.length - 1; i >= 0; --i) {
+        var model = sorted[i];
+
+        var row = document.createElement("tr");
+        row.id = getTag ('model', model.name);
+
+        var column = document.createElement("td");
+        column.innerHTML = model.name;
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        column.innerHTML = model.type;
+        row.appendChild(column);
+
+        var x = new Array();
+        for (var j = model.devices.length - 1; j >= 0; --j) {
+            x[model.devices[j].index] = model.devices[j].name;
+        }
+
+        for (var j = 0; j <= 12; ++j) {
+            column = document.createElement("td");
+            column.innerHTML = (x[j])?x[j]:'';
+            row.appendChild(column);
+        }
+        column = document.createElement("td");
+        column.appendChild (newAction ("Delete", deleteVehicle, model.name));
+        row.appendChild(column);
+
+        table.appendChild(row);
+    }
+}
+
+function dccSortVehicle (a, b) {
+    return a.id < b.id;
+}
+
+function dccShowVehicles (vehicles) {
+    var table = document.getElementById ('vehiclelist');
+    for (var i = table.rows.length - 1; i > 1; --i) {
+       table.deleteRow(i);
+    }
+
+    var sorted = vehicles.sort(dccSortVehicle);
+    for (var i = sorted.length - 1; i >= 0; --i) {
+        var vehicle = sorted[i];
+
+        var row = document.createElement("tr");
+        row.id = getTag ('vehicle', vehicle.id);
+
+        var column = document.createElement("td");
+        column.innerHTML = vehicle.id;
+        column.id = row.id + '--id';
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        column.innerHTML = vehicle.address;
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        column.innerHTML = vehicle.model?vehicle.model:'';
+        row.appendChild(column);
+
+        column = document.createElement("td");
+        column.appendChild (newAction ("Delete", deleteVehicle, vehicle.id));
+        row.appendChild(column);
+
+        table.appendChild(row);
+    }
+}
+
+function dccShow (response) {
+    dccShowGpio (response.trains.gpio);
+    dccShowModels (response.trains.models);
+    dccShowVehicles (response.trains.vehicles);
+    DccKnownConfig = response.trains.latest;
+}
+
+function saveGpio () {
+    var data = document.getElementById ('gpioa').value;
+    if (!data) return;
+    var command = new XMLHttpRequest();
+    var url = "/dcc/gpio?a=" + data;
+    data = document.getElementById ('gpiob').value;
+    if (data) url += '&b=' + data;
+    command.open("GET", url);
+    command.send(null);
+    dccConfig(true); // Force an immediate refresh.
+}
+
+function addModel () {
+    var data = document.getElementById ('newname').value;
+    if (!data) return;
+    var command = new XMLHttpRequest();
+    var url = "/dcc/fleet/vehicle/model?model=" + data;
+    data = document.getElementById ('newtype').value;
+    if (data) url += '&type=' + data;
+    var functions = '';
+    for (var i = 1; i < index2Function.length; ++i) {
+       data = document.getElementById ('new'+index2Function[i]).value;
+       if (data) functions += '+'+data+':'+i;
+    }
+    if (functions.length > 1) url += '&devices=' + functions.slice (1);
+    command.open("GET", url);
+    command.send(null);
+    dccConfig(true); // Force an immediate refresh.
+}
+
+function addVehicle () {
+    var id = document.getElementById ('newid').value;
+    if (!id) return;
+    var adr = document.getElementById ('newadr').value;
+    if (!adr) return;
+    var command = new XMLHttpRequest();
+    var url = "/dcc/fleet/vehicle/add?id=" + id + "&adr=" + adr;
+    var model = document.getElementById ('newmodel').value;
+    if (model) url += '&model=' + model;
+    command.open("GET", url);
+    command.send(null);
+    dccConfig(true); // Force an immediate refresh.
+}
+
+// deleteVehicle is also used to delete a model, the ID will sort it out.
+function deleteVehicle () {
+    var command = new XMLHttpRequest();
+    var url = "/dcc/fleet/vehicle/delete?id="+this.resourceId;
+    command.open("GET", url);
+    command.send(null);
+    dccConfig(true); // Force an immediate refresh.
+}
+
+function dccConfig (reset) {
+    var command = new XMLHttpRequest();
+    var url = "/dcc/fleet/config";
+    if ((!reset) && DccKnownConfig) url += "?known=" + DccKnownConfig;
+    command.open("GET", url);
+    command.onreadystatechange = function () {
+        if (command.readyState === 4 && command.status === 200) {
+            var response = JSON.parse(command.responseText);
+            dccShow(response);
+        }
+    }
+    command.send(null);
+}
+
+window.onload = function() {
+   dccConfig();
+   setInterval (dccConfig, 5000);
+};
+</script>
+<head>
+   <title>DCC Config</title>
+</head>
+<body>
+   <table class="housetopcontainer">
+   <tr><td>
+   <table class="housetop">
+   <tr>
+   <td><a href="/dcc/index.html">Dashboard</a></td>
+   <td><a href="/dcc/events.html">Events</a></td>
+   <td><span>Config</span></td>
+   <td><a href="/dcc/capture.html">Capture</a></td>
+   </tr>
+   </table>
+   </td></tr>
+   </table>
+   <br>
+   <h1>DCC GPIO Pins</h1>
+   <table id="gpiolist" class="housewidetable" border="0">
+      <tr>
+         <th width="10%">PIN +</th>
+         <th width="10%">PIN -</th>
+         <th width="80%"></th>
+      </tr>
+      <tr>
+         <td><input type="number" id="gpioa" min="1" max="27"></td>
+         <td><input type="number" id="gpiob" min="1" max="27"></td>
+         <td><button type="button" onclick="saveGpio()">Save</td>
+      </tr>
+   </table>
+   <br>
+   <h1>Vehicle Models</h1>
+   <table id="modellist" class="housewidetable" border="0">
+      <tr>
+         <th width="10%">NAME</th>
+         <th width="7%">TYPE</th>
+         <th width="6%">FL</th>
+         <th width="6%">F1</th>
+         <th width="6%">F2</th>
+         <th width="6%">F3</th>
+         <th width="6%">F4</th>
+         <th width="6%">F5</th>
+         <th width="6%">F6</th>
+         <th width="6%">F7</th>
+         <th width="6%">F8</th>
+         <th width="6%">F9</th>
+         <th width="6%">F10</th>
+         <th width="6%">F11</th>
+         <th width="6%">F12</th>
+         <th width="5%"></th>
+      </tr>
+      <tr>
+         <td><input type="text" id="newname"></td>
+         <td><input type="text" id="newtype"></td>
+         <td><input type="text" id="newfl"></td>
+         <td><input type="text" id="newf1"></td>
+         <td><input type="text" id="newf2"></td>
+         <td><input type="text" id="newf3"></td>
+         <td><input type="text" id="newf4"></td>
+         <td><input type="text" id="newf5"></td>
+         <td><input type="text" id="newf6"></td>
+         <td><input type="text" id="newf7"></td>
+         <td><input type="text" id="newf8"></td>
+         <td><input type="text" id="newf9"></td>
+         <td><input type="text" id="newf10"></td>
+         <td><input type="text" id="newf11"></td>
+         <td><input type="text" id="newf12"></td>
+         <td><button type="button" onclick="addModel()">Add</button></td>
+      </tr>
+   </table>
+   <br>
+   <h1>Vehicles</h1>
+   <table id="vehiclelist" class="housewidetable" border="0">
+      <tr>
+         <th width="10%">ID</th>
+         <th width="10%">ADDRESS</th>
+         <th width="10%">MODEL</th>
+         <th width="5%"></th>
+         <th width="65%"></th>
+      </tr>
+      <tr>
+         <td><input type="text" id="newid"></td>
+         <td><input type="number" id="newadr"></td>
+         <td><input type="text" id="newmodel"></td>
+         <td><button type="button" onclick="addVehicle()">Add</button></td>
+      </tr>
+   </table>
+</body>
+</html>
+
