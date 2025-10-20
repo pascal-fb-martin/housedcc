@@ -338,6 +338,7 @@ int housedcc_fleet_stop (const char *id, int emergency) {
     int cursor = housedcc_fleet_find (id);
     if (cursor < 0) return 0;
 
+    houselog_event ("VEHICLE", Vehicles[cursor].id, "STOP", emergency?"EMERGENCY BREAK":"BREAK");
     Vehicles[cursor].speed = 0;
     return housedcc_pidcc_stop (Vehicles[cursor].address, emergency);
 }
