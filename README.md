@@ -1,4 +1,4 @@
-# housedcc
+# HouseDCC
 
 A web service to issue commands to model trains.
 
@@ -36,7 +36,7 @@ The features of, and the commands accepted by, HouseDCC are basic: the design ca
 
 ## Configuration
 
-All configuration is stored in the HouseDepot service. The HouseService group name is used to identify the layout. This means that each instance of HouseDcc only handle a single layout.
+All configuration is stored in the HouseDepot service. The HouseService group name is used to identify the layout. This means that each instance of HouseDCC only handle a single layout.
 
 The full configuration is actually split into two parts: static configuration and state. The static configuration contains items that reflect permanent user data, typically the list of vehicle models and vehicles. The state contains items that may change more frequently, including changed initiated by the service itself or from another service, like the list of consists.
 

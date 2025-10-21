@@ -23,7 +23,7 @@ SHARE=$(prefix)/share/house
 INSTALL=/usr/bin/install
 
 HAPP=housedcc
-HCAT=train
+HCAT=Train
 
 # Application build. --------------------------------------------
 
