@@ -27,10 +27,8 @@ function newOnOff (vehicle, text, command, state) {
     return button;
 }
 
-function dccSetDevice () {
-    var requested = this.resourceState?'off':'on';
+function dccCommand (url) {
     var command = new XMLHttpRequest();
-    var url = "/dcc/fleet/set?id="+this.resourceId + "&device=" + this.resourceDevice + "&state=" + requested;
     command.open("GET", url);
     command.onreadystatechange = function () {
         if (command.readyState === 4 && command.status === 200) {
@@ -38,42 +36,34 @@ function dccSetDevice () {
         }
     }
     command.send(null);
+}
+
+function dccSetDevice () {
+    var requested = this.resourceState?'off':'on';
+    var url = "/dcc/fleet/set?id="+this.resourceId + "&device=" + this.resourceDevice + "&state=" + requested;
+    dccCommand (url);
 }
 
 function dccSetSpeed (id, speed) {
-
-    if ((speed < -28) || (speed > 28)) return;
-
-    var command = new XMLHttpRequest();
-    var url = "/dcc/fleet/move?id="+ id + "&speed=" + speed;
-    command.open("GET", url);
-    command.onreadystatechange = function () {
-        if (command.readyState === 4 && command.status === 200) {
-            dccShowStatus (JSON.parse(command.responseText));
-        }
-    }
-    command.send(null);
+    dccCommand ("/dcc/fleet/move?id="+ id + "&speed=" + speed);
 }
 
 function dccIncreaseSpeed () {
+    if (this.resourceState >= 28) return;
     dccSetSpeed (this.resourceId, this.resourceState + 1);
 }
 
 function dccDecreaseSpeed () {
+    if (this.resourceState <= -28) return;
     dccSetSpeed (this.resourceId, this.resourceState - 1);
 }
 
 function dccStop () {
+    dccCommand ("/dcc/fleet/stop?id="+ this.resourceId + "&urgent=1");
+}
 
-    var command = new XMLHttpRequest();
-    var url = "/dcc/fleet/stop?id="+ this.resourceId + "&urgent=1";
-    command.open("GET", url);
-    command.onreadystatechange = function () {
-        if (command.readyState === 4 && command.status === 200) {
-            dccShowStatus (JSON.parse(command.responseText));
-        }
-    }
-    command.send(null);
+function dccStopAll () {
+    dccCommand ("/dcc/fleet/stop?&urgent=1");
 }
 
 function dccSortVehicle (a, b) {
@@ -171,16 +161,9 @@ function dccShowStatus (response) {
 }
 
 function dccStatus () {
-    var command = new XMLHttpRequest();
     var url = "/dcc/fleet/status";
     if (DccLastStatus) url += "?known=" + DccLastStatus;
-    command.open("GET", url);
-    command.onreadystatechange = function () {
-        if (command.readyState === 4 && command.status === 200) {
-            dccShowStatus (JSON.parse(command.responseText));
-        }
-    }
-    command.send(null);
+    dccCommand (url);
 }
 
 window.onload = function() {
@@ -202,6 +185,12 @@ window.onload = function() {
    <td><a href="/dcc/capture.html">Capture</a></td>
    </tr>
    </table>
+   </td></tr>
+   </table>
+   <table class="housewidetable" border="0">
+   <tr>
+      <td width="90%"></td>
+      <td width="10%"><button class="housepanelbutton" style="background-color: red;" onclick="dccStopAll()">STOP</button></td>
    </td></tr>
    </table>
    <h1>Locomotives</h1>

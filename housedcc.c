@@ -430,6 +430,7 @@ static void dcc_config_listener (const char *name, time_t timestamp,
     housedcc_pidcc_reload ();
     housedcc_fleet_reload ();
     housedcc_consist_reload ();
+    dcc_changed();
 }
 
 static void dcc_protect (const char *method, const char *uri) {
