@@ -47,6 +47,7 @@
 #include "houselog.h"
 #include "housecapture.h"
 #include "houseconfig.h"
+#include "housestate.h"
 #include "housediscover.h"
 #include "housedepositor.h"
 #include "housedepositorstate.h"
@@ -61,55 +62,25 @@ static int use_houseportal = 0;
 
 static char JsonBuffer[65537];
 
-static long DccLatest = 0; // Detect any config or status change.
+static int LiveState = -1;
+static int ConfigState = -1;
 
-
-static void dcc_initial (void) {
-    if (!DccLatest) { 
-       // The initial value needs to be somewhat random,
-       // so that the clients can detect a restart.
-       //
-       DccLatest = (long)(time(0) & 0xffff) * 100;
-    }
-}
-
-static void dcc_changed (void) {
-
-    dcc_initial();
-    DccLatest += 1;
-}
-
-static int dcc_same (void) {
-
-    dcc_initial();
-
-    // The 'known' parameter is used for conditional "update" polls,
-    // as a way to detect changes.
-    //
-    const char *knownpar = echttp_parameter_get("known");
-    if (knownpar && (atol(knownpar) == DccLatest)) {
-        echttp_error (304, "Not Modified");
-        return 1; // Same as what alreay known.
-    }
-    return 0; // Not the same as what was known already.
-}
-
-static int dcc_header (char *buffer, int size) {
+static int dcc_header (char *buffer, int size, int stateid) {
 
     int cursor;
     cursor = snprintf (buffer, size,
                        "{\"host\":\"%s\",\"timestamp\":%lld"
-                           ",\"trains\":{\"layout\":\"%s\",\"latest\":%ld",
+                           ",\"trains\":{\"layout\":\"%s\",\"latest\":%lu",
                        houselog_host(),
                        (long long)time(0),
                        housedepositor_group(),
-                       DccLatest);
+                       housestate_current (stateid));
     return cursor;
 }
 
 static int dcc_export (void) {
 
-    int c = dcc_header (JsonBuffer, sizeof(JsonBuffer));
+    int c = dcc_header (JsonBuffer, sizeof(JsonBuffer), ConfigState);
 
     c += housedcc_pidcc_export (JsonBuffer+c, sizeof(JsonBuffer)-c, ",");
     c += housedcc_fleet_export (JsonBuffer+c, sizeof(JsonBuffer)-c, ",");
@@ -120,7 +91,7 @@ static int dcc_export (void) {
 
 static const char *dcc_save (void) {
 
-    dcc_changed();
+    housestate_changed (ConfigState);
 
     int length = dcc_export ();
 
@@ -134,9 +105,9 @@ static const char *dcc_save (void) {
 static const char *dcc_status (const char *method, const char *uri,
                                const char *data, int length) {
 
-    if (dcc_same()) return "";
+    if (housestate_same (LiveState)) return "";
 
-    int cursor = dcc_header (JsonBuffer, sizeof(JsonBuffer));
+    int cursor = dcc_header (JsonBuffer, sizeof(JsonBuffer), LiveState);
 
     cursor += housedcc_fleet_status (JsonBuffer+cursor, sizeof(JsonBuffer)-cursor);
     cursor += housedcc_consist_status (JsonBuffer+cursor, sizeof(JsonBuffer)-cursor);
@@ -173,7 +144,7 @@ static const char *dcc_move (const char *method, const char *uri,
             return "";
         }
     }
-    dcc_changed();
+    housestate_changed (LiveState);
     return dcc_status (method, uri, data, length);
 }
 
@@ -207,7 +178,7 @@ static const char *dcc_stop (const char *method, const char *uri,
             return "";
         }
     }
-    dcc_changed();
+    housestate_changed (LiveState);
     return dcc_status (method, uri, data, length);
 }
 
@@ -252,7 +223,7 @@ static const char *dcc_set (const char *method, const char *uri,
           return "";
        }
     }
-    dcc_changed();
+    housestate_changed (LiveState);
     return dcc_status (method, uri, data, length);
 }
 
@@ -388,7 +359,7 @@ static const char *dcc_deleteConsist (const char *method, const char *uri,
 static const char *dcc_config (const char *method, const char *uri,
                                const char *data, int length) {
 
-    if (dcc_same()) return "";
+    if (housestate_same (ConfigState)) return "";
 
     dcc_export ();
     echttp_content_type_json ();
@@ -430,7 +401,7 @@ static void dcc_config_listener (const char *name, time_t timestamp,
     housedcc_pidcc_reload ();
     housedcc_fleet_reload ();
     housedcc_consist_reload ();
-    dcc_changed();
+    housestate_changed (ConfigState);
 }
 
 static void dcc_protect (const char *method, const char *uri) {
@@ -468,6 +439,10 @@ int main (int argc, const char **argv) {
     if (error) goto fatal;
     error = housedcc_consist_initialize (argc, argv);
     if (error) goto fatal;
+
+    LiveState = housestate_declare ("live");
+    ConfigState = housestate_declare ("config");
+    housestate_cascade (ConfigState, LiveState);
 
     echttp_cors_allow_method("GET");
     echttp_protect (0, dcc_protect);
