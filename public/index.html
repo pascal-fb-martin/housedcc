@@ -73,9 +73,8 @@ function dccSortVehicle (a, b) {
 function dccShowVehicles (response) {
 
    var table = document.getElementById ('vehicles');
-   var remove = document.getElementsByClassName ('removeThisLine');
-   while (remove.length > 0) {
-       table.removeChild(remove[0]);
+   for (var i = table.rows.length-1; i > 0; i--) {
+      table.deleteRow(i);
    }
    if (!response.trains.vehicles) return;
 
@@ -84,8 +83,7 @@ function dccShowVehicles (response) {
 
         var vehicle = vehicles[i];
 
-        var row = document.createElement("tr");
-        row.className = "removeThisLine";
+        var row = table.insertRow();
 
         var column = document.createElement("td");
         column.innerHTML = vehicle.id;
@@ -145,8 +143,6 @@ function dccShowVehicles (response) {
                                            dccIncreaseSpeed, vehicle.speed));
             row.appendChild(column);
         }
-
-        table.appendChild(row);
     }
 }
 
