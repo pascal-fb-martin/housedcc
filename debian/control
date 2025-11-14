@@ -7,7 +7,7 @@ Homepage: https://github.com/pascal-fb-martin/housedcc
 Standard-Version: 4.7.0
 Package: housedcc
 Architecture: {{arch}}
-Depends: houseportal,pidcc
+Depends: houseportal (>= 2.9),pidcc
 Description: A House service to control model train movements
  HouseDCC is part of the train control serie of the House suite of web services.
  .
