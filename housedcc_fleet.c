@@ -540,7 +540,7 @@ static void housedcc_fleet_reload_vehicles (void) {
     int *list = calloc (count, sizeof(int));
     count = houseconfig_enumerate (vehicles, list, count);
     for (i = 0; i < count; ++i) {
-        int item = houseconfig_array_object (vehicles, i);
+        int item = list[i];
         if (item <= 0) continue;
 
         const char *id = houseconfig_string (item, ".id");
