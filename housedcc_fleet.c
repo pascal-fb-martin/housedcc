@@ -484,8 +484,10 @@ static void housedcc_fleet_reload_models (void) {
     Models = calloc (ModelsAllocated, sizeof(DccModel));
 
     int i;
+    int *list = calloc (count, sizeof(int));
+    count = houseconfig_enumerate (models, list, count);
     for (i = 0; i < count; ++i) {
-        int item = houseconfig_array_object (models, i);
+        int item = list[i];
         if (item <= 0) continue;
         const char *name = houseconfig_string (item, ".name");
         const char *type = houseconfig_string (item, ".type");
@@ -503,8 +505,10 @@ static void housedcc_fleet_reload_models (void) {
         if (devcount > FUNCTION_MAX) devcount = FUNCTION_MAX;
 
         int j;
+        int innerlist[FUNCTION_MAX];
+        devcount = houseconfig_enumerate (devices, innerlist, FUNCTION_MAX);
         for (j = 0; j < devcount; ++j) {
-           int dev = houseconfig_array_object (devices, j);
+           int dev = innerlist[i];
            if (dev <= 0) continue;
            const char *devname = houseconfig_string (dev, ".name");
            int index = houseconfig_integer (dev, ".index");
@@ -515,8 +519,8 @@ static void housedcc_fleet_reload_models (void) {
            snprintf (thisdev->name, sizeof(thisdev->name), "%s", devname);
            thisdev->index = index;
         }
-        
     }
+    free (list);
 }
 
 static void housedcc_fleet_reload_vehicles (void) {
@@ -533,6 +537,8 @@ static void housedcc_fleet_reload_vehicles (void) {
     Vehicles = calloc (VehiclesAllocated, sizeof(DccVehicle));
 
     int i;
+    int *list = calloc (count, sizeof(int));
+    count = houseconfig_enumerate (vehicles, list, count);
     for (i = 0; i < count; ++i) {
         int item = houseconfig_array_object (vehicles, i);
         if (item <= 0) continue;
@@ -551,6 +557,7 @@ static void housedcc_fleet_reload_vehicles (void) {
         thisvehicle->address = houseconfig_integer(item, ".address");
         thisvehicle->functions = 0; // TBD: save the state?
     }
+    free (list);
 }
 
 void housedcc_fleet_reload (void) {
