@@ -22,7 +22,7 @@
  */
 const char *housedcc_pidcc_initialize (int argc, const char **argv);
 void housedcc_pidcc_config (int pina, int pinb);
-void housedcc_pidcc_reload (void);
+const char *housedcc_pidcc_reload (void);
 int housedcc_pidcc_export (char *buffer, int size, const char *prefix);
 
 int housedcc_pidcc_move (int address, int speed);

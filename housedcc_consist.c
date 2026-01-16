@@ -62,7 +62,7 @@
  *    Export the list of declared consists in JSON format. This is used
  *    to save the HouseDcc configuration.
  *
- * void housedcc_consist_reload (void);
+ * const char *housedcc_consist_reload (void);
  *
  *    Reload the list of consists from a saved configuration.
  *
@@ -140,8 +140,9 @@ int housedcc_consist_export (char *buffer, int size, const char *prefix) {
     return 0;
 }
 
-void housedcc_consist_reload (void) {
+const char *housedcc_consist_reload (void) {
     // TBD
+    return 0;
 }
 
 int housedcc_consist_move (const char *id, int speed) {

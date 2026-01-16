@@ -25,7 +25,8 @@ void housedcc_consist_delete (const char *ID);
 void housedcc_consist_assign (const char *consist,
                               const char *loco, char mode);
 void housedcc_consist_remove (const char *loco);
-void housedcc_consist_reload (void);
+
+const char *housedcc_consist_reload (void);
 int  housedcc_consist_export (char *buffer, int size, const char *prefix);
 
 int  housedcc_consist_move (const char *id, int speed);

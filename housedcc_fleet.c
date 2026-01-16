@@ -470,13 +470,13 @@ const char *housedcc_fleet_initialize (int argc, const char **argv) {
     return 0;
 }
 
-static void housedcc_fleet_reload_models (void) {
+static const char *housedcc_fleet_reload_models (void) {
 
     int models = houseconfig_array (0, ".trains.models");
-    if (models < 0) return; // Empty config.
+    if (models < 0) return "empty config";
 
     int count = houseconfig_array_length (models);
-    if (count <= 0) return; // Empty array.
+    if (count <= 0) return "empty array";
 
     if (Models) free (Models);
     ModelsCount = 0;
@@ -521,15 +521,16 @@ static void housedcc_fleet_reload_models (void) {
         }
     }
     free (list);
+    return 0;
 }
 
-static void housedcc_fleet_reload_vehicles (void) {
+static const char *housedcc_fleet_reload_vehicles (void) {
 
     int vehicles = houseconfig_array (0, ".trains.vehicles");
-    if (vehicles < 0) return; // Empty config.
+    if (vehicles < 0) return "empty config";
 
     int count = houseconfig_array_length (vehicles);
-    if (count <= 0) return; // Empty array.
+    if (count <= 0) return "empty array";
 
     if (Vehicles) free (Vehicles);
     VehiclesCount = 0;
@@ -558,14 +559,16 @@ static void housedcc_fleet_reload_vehicles (void) {
         thisvehicle->functions = 0; // TBD: save the state?
     }
     free (list);
+    return 0;
 }
 
-void housedcc_fleet_reload (void) {
+const char *housedcc_fleet_reload (void) {
 
-    if (! houseconfig_active()) return;
+    if (! houseconfig_active()) return 0;
 
-    housedcc_fleet_reload_models();
-    housedcc_fleet_reload_vehicles();
+    const char *error = housedcc_fleet_reload_models();
+    if (error) return error;
+    return housedcc_fleet_reload_vehicles();
 }
 
 int housedcc_fleet_export (char *buffer, int size, const char *prefix) {

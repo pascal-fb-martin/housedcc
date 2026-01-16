@@ -89,14 +89,12 @@ static int dcc_export (void) {
     return c;
 }
 
-static const char *dcc_save (void) {
+static const char *dcc_save (const char *reason) {
 
     housestate_changed (ConfigState);
 
-    int length = dcc_export ();
-
-    houseconfig_update (JsonBuffer);
-    housedepositor_put ("config", houseconfig_name(), JsonBuffer, length);
+    dcc_export ();
+    houseconfig_save (JsonBuffer, reason);
 
     echttp_content_type_json ();
     return JsonBuffer;
@@ -238,7 +236,7 @@ static const char *dcc_gpio (const char *method, const char *uri,
         return "";
     }
     housedcc_pidcc_config (atoi(a), b?atoi(b):0);
-    return dcc_save ();
+    return dcc_save ("GPIO CHANGED");
 }
 
 static const char *dcc_addModel (const char *method, const char *uri,
@@ -272,7 +270,7 @@ static const char *dcc_addModel (const char *method, const char *uri,
        }
     }
     housedcc_fleet_declare (model, type, count, accessories);
-    return dcc_save ();
+    return dcc_save ("MODEL ADDED");
 }
 
 static const char *dcc_addVehicle (const char *method, const char *uri,
@@ -287,7 +285,7 @@ static const char *dcc_addVehicle (const char *method, const char *uri,
         return "";
     }
     housedcc_fleet_add (id, model, atoi(adr));
-    return dcc_save ();
+    return dcc_save ("VEHICLE ADDED");
 }
 
 static const char *dcc_addConsist (const char *method, const char *uri,
@@ -301,7 +299,7 @@ static const char *dcc_addConsist (const char *method, const char *uri,
         return "";
     }
     housedcc_consist_add (id, atoi(adr));
-    return dcc_save ();
+    return dcc_save ("CONSIST ADDED");
 }
 
 static const char *dcc_assign (const char *method, const char *uri,
@@ -316,7 +314,7 @@ static const char *dcc_assign (const char *method, const char *uri,
         return "";
     }
     housedcc_consist_assign (consist, loco, modestring[0]);
-    return dcc_save ();
+    return dcc_save ("VEHICLE ASSIGNED");
 }
 
 static const char *dcc_remove (const char *method, const char *uri,
@@ -329,7 +327,7 @@ static const char *dcc_remove (const char *method, const char *uri,
     }
     housedcc_consist_remove (id);
 
-    return dcc_save ();
+    return dcc_save ("VEHICLE REMOVED");
 }
 
 static const char *dcc_deleteVehicle (const char *method, const char *uri,
@@ -341,7 +339,7 @@ static const char *dcc_deleteVehicle (const char *method, const char *uri,
         return "";
     }
     housedcc_fleet_delete (id);
-    return dcc_save ();
+    return dcc_save ("VEHICLE DELETED");
 }
 
 static const char *dcc_deleteConsist (const char *method, const char *uri,
@@ -353,7 +351,7 @@ static const char *dcc_deleteConsist (const char *method, const char *uri,
         return "";
     }
     housedcc_consist_delete (id);
-    return dcc_save ();
+    return dcc_save ("CONSIST DELETED");
 }
 
 static const char *dcc_config (const char *method, const char *uri,
@@ -384,24 +382,19 @@ static void dcc_background (int fd, int mode) {
     housedcc_fleet_periodic(now);
     housediscover (now);
     houselog_background (now);
+    houseconfig_background (now);
     housedepositor_periodic (now);
     housedepositor_state_background (now);
     housecapture_background (now);
 }
 
-static void dcc_config_listener (const char *name, time_t timestamp,
-                                 const char *data, int length) {
-
-    houselog_event ("SYSTEM", "CONFIG", "LOAD", "FROM DEPOT %s", name);
-    const char *error = houseconfig_update (data);
-    if (error) {
-        DEBUG ("Invalid config: %s\n", error);
-        return;
-    }
-    housedcc_pidcc_reload ();
-    housedcc_fleet_reload ();
-    housedcc_consist_reload ();
+static const char *dcc_update (void) {
     housestate_changed (ConfigState);
+    const char *error = housedcc_pidcc_reload ();
+    if (error) return error;
+    error = housedcc_fleet_reload ();
+    if (error) return error;
+    return housedcc_consist_reload ();
 }
 
 static void dcc_protect (const char *method, const char *uri) {
@@ -430,8 +423,7 @@ int main (int argc, const char **argv) {
     }
     houselog_initialize ("dcc", argc, argv);
 
-    houseconfig_default ("--config=dcc");
-    error = houseconfig_load (argc, argv);
+    error = houseconfig_initialize ("dcc", dcc_update, argc, argv);
     if (error) goto fatal;
     error = housedcc_pidcc_initialize (argc, argv);
     if (error) goto fatal;
@@ -469,8 +461,6 @@ int main (int argc, const char **argv) {
     housedepositor_state_load ("dcc", argc, argv);
     housedepositor_state_share (1);
     housecapture_initialize ("/dcc", argc, argv);
-
-    housedepositor_subscribe ("config", houseconfig_name(), dcc_config_listener);
 
     houselog_event ("SERVICE", "dcc", "STARTED", "ON %s", houselog_host());
     echttp_loop();

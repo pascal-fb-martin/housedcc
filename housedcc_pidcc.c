@@ -32,7 +32,7 @@
  *
  *    Update the PiDCC configuration, typically on a user action.
  *
- * void housedcc_pidcc_reload (void);
+ * const char *housedcc_pidcc_reload (void);
  *
  *    Reload the program's configuration, typically on restart or when
  *    detecting a configuration change.
@@ -143,13 +143,14 @@ void housedcc_pidcc_config (int pina, int pinb) {
     housedcc_pidcc_write (text, l);
 }
 
-void housedcc_pidcc_reload (void) {
+const char *housedcc_pidcc_reload (void) {
 
-    if (! houseconfig_active()) return;
+    if (! houseconfig_active()) return 0;
 
     // Retrieve the new configuration from the JSON data structure.
     housedcc_pidcc_config (houseconfig_integer (0, ".trains.gpio[0]"),
                            houseconfig_integer (0, ".trains.gpio[1]"));
+    return 0;
 }
 
 int housedcc_pidcc_export (char *buffer, int size, const char *prefix) {

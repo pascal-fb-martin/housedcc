@@ -37,5 +37,5 @@ void housedcc_fleet_periodic (time_t now);
 
 int  housedcc_fleet_status (char *buffer, int size);
 
-void housedcc_fleet_reload (void);
+const char *housedcc_fleet_reload (void);
 int housedcc_fleet_export (char *buffer, int size, const char *prefix);
