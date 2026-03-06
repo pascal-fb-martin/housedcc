@@ -479,15 +479,16 @@ const char *housedcc_fleet_initialize (int argc, const char **argv) {
 static const char *housedcc_fleet_reload_models (void) {
 
     int models = houseconfig_array (0, ".trains.models");
-    if (models < 0) return "empty config";
+    int count = 0;
 
-    int count = houseconfig_array_length (models);
-    if (count <= 0) return "empty array";
+    if (models >= 0) count = houseconfig_array_length (models);
 
     if (Models) free (Models);
     ModelsCount = 0;
     ModelsAllocated = count + 16;
     Models = calloc (ModelsAllocated, sizeof(DccModel));
+
+    if (count <= 0) return 0; // Nothing to load.
 
     int i;
     int *list = calloc (count, sizeof(int));
@@ -533,15 +534,16 @@ static const char *housedcc_fleet_reload_models (void) {
 static const char *housedcc_fleet_reload_vehicles (void) {
 
     int vehicles = houseconfig_array (0, ".trains.vehicles");
-    if (vehicles < 0) return "empty config";
+    int count = 0;
 
-    int count = houseconfig_array_length (vehicles);
-    if (count <= 0) return "empty array";
+    if (vehicles >= 0) count = houseconfig_array_length (vehicles);
 
     if (Vehicles) free (Vehicles);
     VehiclesCount = 0;
     VehiclesAllocated = count + 16;
     Vehicles = calloc (VehiclesAllocated, sizeof(DccVehicle));
+
+    if (count <= 0) return 0; // Nothing to load.
 
     int i;
     int *list = calloc (count, sizeof(int));
