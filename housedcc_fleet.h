@@ -26,7 +26,7 @@ const char *housedcc_fleet_initialize (int argc, const char **argv);
 
 void housedcc_fleet_declare (const char *model, const char *type,
                                int count, const char *accessory[]);
-void housedcc_fleet_add (const char *id, const char *model, int address);
+const char *housedcc_fleet_add (const char *id, const char *model, int address);
 void housedcc_fleet_delete (const char *id);
 int  housedcc_fleet_exists (const char *id);
 int  housedcc_fleet_move (const char *id, int speed);

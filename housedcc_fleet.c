@@ -49,10 +49,10 @@
  *
  *    Declare a new vehicle model.
  *
- * void housedcc_fleet_add (const char *id, const char *model, int address);
+ * const char *housedcc_fleet_add (const char *id, const char *model, int address);
  *
  *    Declare a new vehicle. This replaces an existing vehicle if the
- *    ID is already in use.
+ *    ID is already in use. It returns 0 on success, an error text otherwise.
  *
  * void housedcc_fleet_delete (const char *id);
  *
@@ -244,32 +244,35 @@ static int housedcc_fleet_valid_address (int address) {
     return (address > 0) && (address < 128);
 }
 
-void housedcc_fleet_add (const char *id, const char *model, int address) {
+const char *housedcc_fleet_add (const char *id, const char *model, int address) {
 
-    if (!housedcc_fleet_valid_address (address)) return;
+    if (!housedcc_fleet_valid_address (address)) return "Invalid address";
 
     int cursor;
     DccModel *thismodel = 0;
 
     if (model) {
         cursor = housedcc_fleet_find_model (model);
-        if (cursor >= 0)
-            thismodel = Models + cursor;
-        else
+        if (cursor < 0) {
             DEBUG ("Unknown model %s referenced by vehicle %s\n", model, id);
+            return "Unknown model";
+        }
+        thismodel = Models + cursor;
     }
 
     cursor = housedcc_fleet_find (id);
     int synonym = housedcc_fleet_find_address (address);
-    if ((synonym >= 0) && (cursor != synonym)) {
+    if ((synonym >= 0) && (cursor != synonym) && Vehicles[synonym].id[0]) {
         DEBUG ("Address of %s conflicts with vehicle %s\n",
                id, Vehicles[synonym].id);
-        return; // No units with same address.
+        return "Duplicate address"; // No two units with the same address.
     }
 
+    const char *action = "MODIFIED";
     if (cursor < 0) {
         // This is a new vehicle. Try to reuse a deleted spot first.
         DEBUG ("New vehicle %s\n", id);
+        action = "CREATED";
         for (cursor = 0; cursor < VehiclesCount; ++cursor) {
             if (Vehicles[cursor].id[0] == 0) break;
         }
@@ -288,7 +291,9 @@ void housedcc_fleet_add (const char *id, const char *model, int address) {
     Vehicles[cursor].functions = 0;
     Vehicles[cursor].model = thismodel;
 
-    houselog_event ("VEHICLE", id, "CREATED", "MODEL %s", model);
+    houselog_event ("VEHICLE", id,
+                    action, "MODEL %s AT ADDRESS %d", model, address);
+    return 0;
 }
 
 void housedcc_fleet_delete (const char *id) {
@@ -296,6 +301,7 @@ void housedcc_fleet_delete (const char *id) {
     int cursor = housedcc_fleet_find (id);
     if (cursor >= 0) {
         Vehicles[cursor].id[0] = 0;
+        Vehicles[cursor].address = 0;
         houselog_event ("VEHICLE", id, "DELETED", "");
         return;
     }

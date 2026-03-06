@@ -284,7 +284,11 @@ static const char *dcc_addVehicle (const char *method, const char *uri,
         echttp_error (404, "missing vehicle ID or address");
         return "";
     }
-    housedcc_fleet_add (id, model, atoi(adr));
+    const char *error = housedcc_fleet_add (id, model, atoi(adr));
+    if (error) {
+        echttp_error (404, error);
+        return "";
+    }
     return dcc_save ("VEHICLE ADDED");
 }
 

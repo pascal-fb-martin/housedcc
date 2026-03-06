@@ -54,11 +54,16 @@ function dccShowModels (models) {
         row.appendChild(column);
 
         var x = new Array();
-        for (var j = model.devices.length - 1; j >= 0; --j) {
-            x[model.devices[j].index] = model.devices[j].name;
+        if (model.devices) {
+            for (var j = model.devices.length - 1; j >= 0; --j) {
+                x[model.devices[j].index] = model.devices[j].name;
+            }
         }
 
-        for (var j = 0; j <= 12; ++j) {
+        column = document.createElement("td");
+        column.innerHTML = (x[13])?x[13]:'';
+        row.appendChild(column);
+        for (var j = 1; j <= 12; ++j) {
             column = document.createElement("td");
             column.innerHTML = (x[j])?x[j]:'';
             row.appendChild(column);
@@ -116,22 +121,34 @@ function dccShow (response) {
     DccKnownConfig = response.trains.latest;
 }
 
+function dccCommand (url) {
+    var command = new XMLHttpRequest();
+    command.open("GET", url);
+    command.onreadystatechange = function () {
+        if (command.readyState === 4) {
+            if (command.status === 200) {
+                var response = JSON.parse(command.responseText);
+                dccShow(response);
+            } else if (command.status === 404) {
+                alert (command.statusText);
+            }
+        }
+    }
+    command.send(null);
+}
+
 function saveGpio () {
     var data = document.getElementById ('gpioa').value;
     if (!data) return;
-    var command = new XMLHttpRequest();
     var url = "/dcc/gpio?a=" + data;
     data = document.getElementById ('gpiob').value;
     if (data) url += '&b=' + data;
-    command.open("GET", url);
-    command.send(null);
-    dccConfig(true); // Force an immediate refresh.
+    dccCommand (url);
 }
 
 function addModel () {
     var data = document.getElementById ('newname').value;
     if (!data) return;
-    var command = new XMLHttpRequest();
     var url = "/dcc/fleet/vehicle/model?model=" + data;
     data = document.getElementById ('newtype').value;
     if (data) url += '&type=' + data;
@@ -141,9 +158,7 @@ function addModel () {
        if (data) functions += '+'+data+':'+i;
     }
     if (functions.length > 1) url += '&devices=' + functions.slice (1);
-    command.open("GET", url);
-    command.send(null);
-    dccConfig(true); // Force an immediate refresh.
+    dccCommand (url);
 }
 
 function addVehicle () {
@@ -151,22 +166,15 @@ function addVehicle () {
     if (!id) return;
     var adr = document.getElementById ('newadr').value;
     if (!adr) return;
-    var command = new XMLHttpRequest();
     var url = "/dcc/fleet/vehicle/add?id=" + id + "&adr=" + adr;
     var model = document.getElementById ('newmodel').value;
     if (model) url += '&model=' + model;
-    command.open("GET", url);
-    command.send(null);
-    dccConfig(true); // Force an immediate refresh.
+    dccCommand (url);
 }
 
 // deleteVehicle is also used to delete a model, the ID will sort it out.
 function deleteVehicle () {
-    var command = new XMLHttpRequest();
-    var url = "/dcc/fleet/vehicle/delete?id="+this.resourceId;
-    command.open("GET", url);
-    command.send(null);
-    dccConfig(true); // Force an immediate refresh.
+    dccCommand ("/dcc/fleet/vehicle/delete?id="+this.resourceId);
 }
 
 function dccConfig (reset) {
