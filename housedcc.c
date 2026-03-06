@@ -58,8 +58,6 @@
 
 #define DEBUG if (echttp_isdebug()) printf
 
-static int use_houseportal = 0;
-
 static char JsonBuffer[65537];
 
 static int LiveState = -1;
@@ -370,19 +368,9 @@ static const char *dcc_config (const char *method, const char *uri,
 
 static void dcc_background (int fd, int mode) {
 
-    static time_t LastRenewal = 0;
     time_t now = time(0);
 
-    if (use_houseportal) {
-        static const char *path[] = {"train:/dcc"};
-        if (now >= LastRenewal + 60) {
-            if (LastRenewal > 0)
-                houseportal_renew();
-            else
-                houseportal_register (echttp_port(4), path, 1);
-            LastRenewal = now;
-        }
-    }
+    houseportal_background (now);
     housedcc_fleet_periodic(now);
     housediscover (now);
     houselog_background (now);
@@ -422,10 +410,13 @@ int main (int argc, const char **argv) {
 
     argc = echttp_open (argc, argv);
     if (echttp_dynamic_port()) {
+        static const char *path[] = {"train:/dcc"};
         houseportal_initialize (argc, argv);
-        use_houseportal = 1;
+        houseportal_declare (echttp_port(4), path, 1);
     }
+    housediscover_initialize (argc, argv);
     houselog_initialize ("dcc", argc, argv);
+    housedepositor_initialize (argc, argv);
 
     error = houseconfig_initialize ("dcc", dcc_update, argc, argv);
     if (error) goto fatal;
@@ -460,8 +451,6 @@ int main (int argc, const char **argv) {
 
     echttp_static_route ("/", "/usr/local/share/house/public");
     echttp_background (&dcc_background);
-    housediscover_initialize (argc, argv);
-    housedepositor_initialize (argc, argv);
     housedepositor_state_load ("dcc", argc, argv);
     housedepositor_state_share (1);
     housecapture_initialize ("/dcc", argc, argv);
