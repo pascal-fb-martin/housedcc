@@ -58,6 +58,10 @@ function dccDecreaseSpeed () {
     dccSetSpeed (this.resourceId, this.resourceState - 1);
 }
 
+function dccRepeat () {
+    dccSetSpeed (this.resourceId, this.resourceState);
+}
+
 function dccStop () {
     dccCommand ("/dcc/fleet/stop?id="+ this.resourceId + "&urgent=1");
 }
@@ -138,6 +142,7 @@ function dccShowVehicles (response) {
             column = document.createElement("td");
             column.appendChild (newAction (vehicle.id, '&#x25C0',
                                            dccDecreaseSpeed, vehicle.speed));
+            column.appendChild (newAction (vehicle.id, "REPEAT", dccRepeat, vehicle.speed));
             column.appendChild (newAction (vehicle.id, "STOP", dccStop, 0));
             column.appendChild (newAction (vehicle.id, '&#x25B6',
                                            dccIncreaseSpeed, vehicle.speed));
