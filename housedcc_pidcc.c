@@ -280,7 +280,7 @@ int housedcc_pidcc_move (int address, int speed) {
     if (PiDccState == '*') return 0; // Failed.
 
     char command[32];
-    int dir = (speed > 0) ? 0x20 : 0;
+    int dir = (speed >= 0) ? 0x20 : 0;
     speed = abs(speed);
     if (speed > 28) return 0; // Over the limit speed.
 
