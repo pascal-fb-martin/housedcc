@@ -298,7 +298,7 @@ int housedcc_pidcc_stop (int address, int emergency) {
 
     char command[32];
     int l = snprintf (command, sizeof(command), "send %d %d",
-                      address & 0x7f, 0x40 + (emergency?1:0));
+                      address & 0x7f, 0x60 + (emergency?1:0));
 
     return housedcc_pidcc_write (command, l);
 }
