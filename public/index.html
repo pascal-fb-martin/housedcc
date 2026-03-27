@@ -142,10 +142,12 @@ function dccShowVehicles (response) {
             column = document.createElement("td");
             column.appendChild (newAction (vehicle.id, '&#x25C0',
                                            dccDecreaseSpeed, vehicle.speed));
+            column.appendChild (newAction (vehicle.id, '&#x25C0 5', dccRepeat, -5));
             column.appendChild (newAction (vehicle.id, '&#x25C0 3', dccRepeat, -3));
             column.appendChild (newAction (vehicle.id, "REPEAT", dccRepeat, vehicle.speed));
             column.appendChild (newAction (vehicle.id, "STOP", dccStop, 0));
             column.appendChild (newAction (vehicle.id, '3 &#x25B6', dccRepeat, 3));
+            column.appendChild (newAction (vehicle.id, '5 &#x25B6', dccRepeat, 5));
             column.appendChild (newAction (vehicle.id, '&#x25B6',
                                            dccIncreaseSpeed, vehicle.speed));
             row.appendChild(column);
@@ -204,8 +206,8 @@ window.onload = function() {
          <th width="10%">TYPE</th>
          <th width="10%">DIRECTION</th>
          <th width="5%">SPEED</th>
-         <th width="30%">DEVICES</th>
-         <th width="20%">COMMANDS</th>
+         <th width="20%">DEVICES</th>
+         <th width="30%">COMMANDS</th>
       </tr>
    </table>
    <h1>Train Consists</h1>
