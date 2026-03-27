@@ -142,8 +142,10 @@ function dccShowVehicles (response) {
             column = document.createElement("td");
             column.appendChild (newAction (vehicle.id, '&#x25C0',
                                            dccDecreaseSpeed, vehicle.speed));
+            column.appendChild (newAction (vehicle.id, '&#x25C0 3', dccRepeat, -3));
             column.appendChild (newAction (vehicle.id, "REPEAT", dccRepeat, vehicle.speed));
             column.appendChild (newAction (vehicle.id, "STOP", dccStop, 0));
+            column.appendChild (newAction (vehicle.id, '3 &#x25B6', dccRepeat, 3));
             column.appendChild (newAction (vehicle.id, '&#x25B6',
                                            dccIncreaseSpeed, vehicle.speed));
             row.appendChild(column);
