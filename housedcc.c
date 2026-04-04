@@ -255,7 +255,7 @@ static const char *dcc_addModel (const char *method, const char *uri,
     if (dev && (*dev > 0)) {
 
        char localcopy[512];
-       snprintf (localcopy, sizeof(localcopy), "%s", dev);
+       memccpy (localcopy, dev, 0, sizeof(localcopy));
 
        char *cursor = localcopy;
        accessories[count++] = cursor;

@@ -219,7 +219,7 @@ void housedcc_fleet_declare (const char *model, const char *type,
             }
             cursor = ModelsCount++;
         }
-        snprintf (Models[cursor].name, sizeof(Models[0].name), "%s", model);
+        memccpy (Models[cursor].name, model, 0, sizeof(Models[0].name));
     }
     Models[cursor].type = housedcc_fleet_totype (type);
 
@@ -228,8 +228,8 @@ void housedcc_fleet_declare (const char *model, const char *type,
 
     int i;
     for (i = 0; i < count; ++i) {
-        snprintf (Models[cursor].functions[i].name,
-                  sizeof(Models[0].functions[0].name), "%s", functions[i]);
+        memccpy (Models[cursor].functions[i].name,
+                  functions[i], 0, sizeof(Models[0].functions[0].name));
         Models[cursor].functions[i].index = -1;
         char *sep = strchr (Models[cursor].functions[i].name, ':');
         if (sep) {
@@ -284,7 +284,7 @@ const char *housedcc_fleet_add (const char *id, const char *model, int address) 
             }
             cursor = VehiclesCount++;
         }
-        snprintf (Vehicles[cursor].id, sizeof(Vehicles->id), "%s", id);
+        memccpy (Vehicles[cursor].id, id, 0, sizeof(Vehicles->id));
     }
     Vehicles[cursor].address = (short)address;
     Vehicles[cursor].speed = 0;
@@ -501,7 +501,7 @@ static const char *housedcc_fleet_reload_models (void) {
         if ((!name) || (!type)) continue;
 
         DccModel *thismodel = Models + ModelsCount++;
-        snprintf (thismodel->name, sizeof(Models[0].name), "%s", name);
+        memccpy (thismodel->name, name, 0, sizeof(Models[0].name));
         thismodel->type = housedcc_fleet_totype (type);
         thismodel->count = 0;
 
@@ -523,7 +523,7 @@ static const char *housedcc_fleet_reload_models (void) {
 
            DccFunction *thisdev =
                thismodel->functions + (thismodel->count)++;
-           snprintf (thisdev->name, sizeof(thisdev->name), "%s", devname);
+           memccpy (thisdev->name, devname, 0, sizeof(thisdev->name));
            thisdev->index = index;
         }
     }
@@ -557,7 +557,7 @@ static const char *housedcc_fleet_reload_vehicles (void) {
         if (!id) continue;
 
         DccVehicle *thisvehicle = Vehicles + VehiclesCount++;
-        snprintf (thisvehicle->id, sizeof(thisvehicle->id), "%s", id);
+        memccpy (thisvehicle->id, id, 0, sizeof(thisvehicle->id));
         thisvehicle->model = 0;
         if (model) {
             int m = housedcc_fleet_find_model (model);
