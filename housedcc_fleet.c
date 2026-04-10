@@ -109,6 +109,7 @@
 #include <echttp.h>
 #include <echttp_json.h>
 #include <echttp_encoding.h>
+#include "echttp_libc.h"
 
 #include "houselog.h"
 #include "houseconfig.h"
@@ -219,7 +220,7 @@ void housedcc_fleet_declare (const char *model, const char *type,
             }
             cursor = ModelsCount++;
         }
-        memccpy (Models[cursor].name, model, 0, sizeof(Models[0].name));
+        strtcpy (Models[cursor].name, model, sizeof(Models[0].name));
     }
     Models[cursor].type = housedcc_fleet_totype (type);
 
@@ -228,8 +229,8 @@ void housedcc_fleet_declare (const char *model, const char *type,
 
     int i;
     for (i = 0; i < count; ++i) {
-        memccpy (Models[cursor].functions[i].name,
-                  functions[i], 0, sizeof(Models[0].functions[0].name));
+        strtcpy (Models[cursor].functions[i].name,
+                 functions[i], sizeof(Models[0].functions[0].name));
         Models[cursor].functions[i].index = -1;
         char *sep = strchr (Models[cursor].functions[i].name, ':');
         if (sep) {
@@ -284,7 +285,7 @@ const char *housedcc_fleet_add (const char *id, const char *model, int address) 
             }
             cursor = VehiclesCount++;
         }
-        memccpy (Vehicles[cursor].id, id, 0, sizeof(Vehicles->id));
+        strtcpy (Vehicles[cursor].id, id, sizeof(Vehicles->id));
     }
     Vehicles[cursor].address = (short)address;
     Vehicles[cursor].speed = 0;
@@ -501,7 +502,7 @@ static const char *housedcc_fleet_reload_models (void) {
         if ((!name) || (!type)) continue;
 
         DccModel *thismodel = Models + ModelsCount++;
-        memccpy (thismodel->name, name, 0, sizeof(Models[0].name));
+        strtcpy (thismodel->name, name, sizeof(Models[0].name));
         thismodel->type = housedcc_fleet_totype (type);
         thismodel->count = 0;
 
@@ -523,7 +524,7 @@ static const char *housedcc_fleet_reload_models (void) {
 
            DccFunction *thisdev =
                thismodel->functions + (thismodel->count)++;
-           memccpy (thisdev->name, devname, 0, sizeof(thisdev->name));
+           strtcpy (thisdev->name, devname, sizeof(thisdev->name));
            thisdev->index = index;
         }
     }
@@ -557,7 +558,7 @@ static const char *housedcc_fleet_reload_vehicles (void) {
         if (!id) continue;
 
         DccVehicle *thisvehicle = Vehicles + VehiclesCount++;
-        memccpy (thisvehicle->id, id, 0, sizeof(thisvehicle->id));
+        strtcpy (thisvehicle->id, id, sizeof(thisvehicle->id));
         thisvehicle->model = 0;
         if (model) {
             int m = housedcc_fleet_find_model (model);

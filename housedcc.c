@@ -42,6 +42,7 @@
 #include "echttp.h"
 #include "echttp_cors.h"
 #include "echttp_static.h"
+#include "echttp_libc.h"
 
 #include "houseportalclient.h"
 #include "houselog.h"
@@ -255,7 +256,7 @@ static const char *dcc_addModel (const char *method, const char *uri,
     if (dev && (*dev > 0)) {
 
        char localcopy[512];
-       memccpy (localcopy, dev, 0, sizeof(localcopy));
+       strtcpy (localcopy, dev, sizeof(localcopy));
 
        char *cursor = localcopy;
        accessories[count++] = cursor;
