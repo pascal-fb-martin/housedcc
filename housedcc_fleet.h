@@ -33,7 +33,7 @@ int  housedcc_fleet_move (const char *id, int speed);
 int  housedcc_fleet_stop (const char *id, int emergency);
 void housedcc_fleet_stopped (void);
 int  housedcc_fleet_set (const char *id, const char *name, int state);
-void housedcc_fleet_periodic (time_t now);
+int  housedcc_fleet_background (time_t now);
 
 int  housedcc_fleet_status (char *buffer, int size);
 

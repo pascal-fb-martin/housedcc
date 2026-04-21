@@ -161,7 +161,8 @@ function dccShowTrains (response) {
 function dccShowStatus (response) {
    dccShowVehicles (response);
    dccShowTrains (response);
-   DccLastStatus = response.trains.latest;
+   DccLastStatus = response.latest;
+   if (!DccLastStatus) DccLastStatus = response.trains.latest;
 }
 
 function dccStatus () {

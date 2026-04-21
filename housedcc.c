@@ -68,12 +68,12 @@ static int dcc_header (char *buffer, int size, int stateid) {
 
     int cursor;
     cursor = snprintf (buffer, size,
-                       "{\"host\":\"%s\",\"timestamp\":%lld"
-                           ",\"trains\":{\"layout\":\"%s\",\"latest\":%lu",
+                       "{\"host\":\"%s\",\"timestamp\":%lld,\"latest\":%lu"
+                           ",\"trains\":{\"layout\":\"%s\"",
                        houselog_host(),
                        (long long)time(0),
-                       housedepositor_group(),
-                       housestate_current (stateid));
+                       housestate_current (stateid),
+                       housedepositor_group());
     return cursor;
 }
 
@@ -103,6 +103,12 @@ static const char *dcc_status (const char *method, const char *uri,
                                const char *data, int length) {
 
     if (housestate_same (LiveState)) return "";
+
+    const char *layout = echttp_parameter_get("layout");
+    if (layout && strcmp (layout, housedepositor_group())) {
+        echttp_error (421, "Not the requested layout");
+        return "";
+    }
 
     int cursor = dcc_header (JsonBuffer, sizeof(JsonBuffer), LiveState);
 
@@ -372,7 +378,7 @@ static void dcc_background (int fd, int mode) {
     time_t now = time(0);
 
     houseportal_background (now);
-    housedcc_fleet_periodic(now);
+    if (housedcc_fleet_background (now)) housestate_changed (LiveState);
     housediscover (now);
     houselog_background (now);
     houseconfig_background (now);

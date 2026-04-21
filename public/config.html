@@ -118,7 +118,8 @@ function dccShow (response) {
     dccShowGpio (response.trains.gpio);
     dccShowModels (response.trains.models);
     dccShowVehicles (response.trains.vehicles);
-    DccKnownConfig = response.trains.latest;
+    DccKnownConfig = response.latest;
+    if (!DccKnownConfig) DccKnownConfig = response.trains.latest;
 }
 
 function dccCommand (url) {

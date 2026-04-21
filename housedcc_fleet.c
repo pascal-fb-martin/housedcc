@@ -91,9 +91,10 @@
  *
  *    export this module's configuration to JSON format.
  *
- * void housedcc_fleet_periodic (time_t now);
+ * int housedcc_fleet_background (time_t now);
  *
  *    The periodic function that maintain information about locomotives.
+ *    This returns 1 if the live state changed, 0 otherwise.
  *
  * int housedcc_fleet_status (char *buffer, int size);
  *
@@ -143,6 +144,7 @@ typedef struct {
     short address;
     short speed;
     short functions;
+    time_t deadline;
     DccModel *model;
 } DccVehicle;
 
@@ -289,6 +291,7 @@ const char *housedcc_fleet_add (const char *id, const char *model, int address) 
     }
     Vehicles[cursor].address = (short)address;
     Vehicles[cursor].speed = 0;
+    Vehicles[cursor].deadline = 0;
     Vehicles[cursor].functions = 0;
     Vehicles[cursor].model = thismodel;
 
@@ -337,6 +340,7 @@ int housedcc_fleet_move (const char *id, int speed) {
           houselog_event ("VEHICLE", Vehicles[cursor].id, "STOP", "");
     }
     Vehicles[cursor].speed = speed;
+    Vehicles[cursor].deadline = time(0) + 10; // TBD: make it configurable
     return housedcc_pidcc_move (Vehicles[cursor].address, speed);
 }
 
@@ -347,6 +351,7 @@ int housedcc_fleet_stop (const char *id, int emergency) {
 
     houselog_event ("VEHICLE", Vehicles[cursor].id, "STOP", emergency?"EMERGENCY BREAK":"BREAK");
     Vehicles[cursor].speed = 0;
+    Vehicles[cursor].deadline = 0;
     return housedcc_pidcc_stop (Vehicles[cursor].address, emergency);
 }
 
@@ -354,7 +359,10 @@ void housedcc_fleet_stopped (void) {
     int i;
     houselog_event ("VEHICLE", "ALL", "STOPPED", "");
     for (i = 0; i < VehiclesCount; ++i) {
-        if (Vehicles[i].id[0]) Vehicles[i].speed = 0;
+        if (Vehicles[i].id[0]) {
+            Vehicles[i].speed = 0;
+            Vehicles[i].deadline = 0;
+        }
     }
 }
 
@@ -468,8 +476,24 @@ overflow:
     return 0;
 }
 
-void housedcc_fleet_periodic (time_t now) {
-    // TBD
+int housedcc_fleet_background (time_t now) {
+
+    // DCC engines stop moving after 10 seconds if the speed command
+    // is not repeated. This is a safety feature, to prevent runaway
+    // vehicle events.
+    // This program does not automatically repeat the speed command:
+    // this is up to the top level application to do it, for the same
+    // reason that the timeout exists in the first place.
+    int i;
+    int changed = 0;
+    for (i = VehiclesCount-1; i >= 0; --i) {
+        if ((Vehicles[i].deadline > 0) && (Vehicles[i].deadline < now)) {
+            Vehicles[i].speed = 0;
+            Vehicles[i].deadline = 0;
+            changed = 1;
+        }
+    }
+    return changed;
 }
 
 const char *housedcc_fleet_initialize (int argc, const char **argv) {
