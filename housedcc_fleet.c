@@ -44,10 +44,10 @@
  *
  *    Initialize this module.
  *
- * void housedcc_fleet_declare (const char *model, const char *type,
+ * void housedcc_fleet_declare (const char *model, const char *scale,
  *                                int count, const char *functions[]);
  *
- *    Declare a new vehicle model.
+ *    Declare a new vehicle model. The default scale is "N".
  *
  * const char *housedcc_fleet_add (const char *id, const char *model, int address);
  *
@@ -123,9 +123,7 @@
 
 #define FUNCTION_MAX 16
 
-#define VEHICLE_TYPE_NODCC  0
-#define VEHICLE_TYPE_CAR    1
-#define VEHICLE_TYPE_ENGINE 2
+#define MODEL_SCALE_DEFAULT "N"
 
 typedef struct {
     char name[15]; // Keep names as standard as possible.
@@ -136,6 +134,7 @@ typedef struct {
     char name[15];
     short count;
     DccFunction functions[FUNCTION_MAX];
+    char scale[4];
 } DccModel;
 
 typedef struct {
@@ -187,7 +186,7 @@ static int housedcc_fleet_find_address (int address) {
     return -1;
 }
 
-void housedcc_fleet_declare (const char *model,
+void housedcc_fleet_declare (const char *model, const char *scale,
                              int count, const char *functions[]) {
 
     int cursor = housedcc_fleet_find_model (model);
@@ -206,6 +205,9 @@ void housedcc_fleet_declare (const char *model,
         }
         strtcpy (Models[cursor].name, model, sizeof(Models[0].name));
     }
+
+    if (!scale) scale = MODEL_SCALE_DEFAULT;
+    strtcpy (Models[cursor].scale, scale, sizeof(Models[0].scale));
 
     if (count > FUNCTION_MAX) count = FUNCTION_MAX;
     Models[cursor].count = count;
@@ -504,8 +506,12 @@ static const char *housedcc_fleet_reload_models (void) {
         const char *name = houseconfig_string (item, ".name");
         if (!name) continue;
 
+        const char *scale = houseconfig_string (item, ".scale");
+        if (!scale) scale = MODEL_SCALE_DEFAULT;
+
         DccModel *thismodel = Models + ModelsCount++;
         strtcpy (thismodel->name, name, sizeof(Models[0].name));
+        strtcpy (thismodel->scale, scale, sizeof(Models[0].scale));
         thismodel->count = 0;
 
         int devices = houseconfig_array (item, ".devices");
@@ -597,7 +603,8 @@ int housedcc_fleet_export (char *buffer, int size, const char *prefix) {
         if (!model->name[0]) continue; // Ignore obsolete entries.
 
         cursor += snprintf (buffer+cursor, size-cursor,
-                            "%s{\"name\":\"%s\"", prefix, model->name);
+                            "%s{\"name\":\"%s\",\"scale\":\"%s\"",
+                            prefix, model->name, model->scale);
 
         if (model->count > 0) {
            const char *prefix2 = ",\"devices\":[";

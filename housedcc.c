@@ -248,6 +248,7 @@ static const char *dcc_addModel (const char *method, const char *uri,
                                  const char *data, int length) {
 
     const char *model = echttp_parameter_get("model");
+    const char *scale = echttp_parameter_get("scale");
     const char *dev = echttp_parameter_get("devices");
 
     if (!model) {
@@ -273,7 +274,7 @@ static const char *dcc_addModel (const char *method, const char *uri,
           if (count >= 16) break; // Avoid overflow.
        }
     }
-    housedcc_fleet_declare (model, count, accessories);
+    housedcc_fleet_declare (model, scale, count, accessories);
     return dcc_save ("MODEL ADDED");
 }
 

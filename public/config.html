@@ -49,6 +49,10 @@ function dccShowModels (models) {
         column.innerHTML = model.name;
         row.appendChild(column);
 
+        var column = document.createElement("td");
+        column.innerHTML = model.scale;
+        row.appendChild(column);
+
         var x = new Array();
         if (model.devices) {
             for (var j = model.devices.length - 1; j >= 0; --j) {
@@ -147,6 +151,8 @@ function addModel () {
     var data = document.getElementById ('newname').value;
     if (!data) return;
     var url = "/dcc/fleet/vehicle/model?model=" + data;
+    var data = document.getElementById ('newscale').value;
+    if (data) url += '&scale=' + data;
     var functions = '';
     for (var i = 1; i < index2Function.length; ++i) {
        data = document.getElementById ('new'+index2Function[i]).value;
@@ -224,6 +230,7 @@ window.onload = function() {
    <table id="modellist" class="housewidetable" border="0">
       <tr>
          <th width="10%">NAME</th>
+         <th width="4%">SCALE</th>
          <th width="6%">FL</th>
          <th width="6%">F1</th>
          <th width="6%">F2</th>
@@ -237,10 +244,11 @@ window.onload = function() {
          <th width="6%">F10</th>
          <th width="6%">F11</th>
          <th width="6%">F12</th>
-         <th width="12%"></th>
+         <th width="8%"></th>
       </tr>
       <tr>
          <td><input type="text" id="newname"></td>
+         <td><input type="text" id="newscale"></td>
          <td><input type="text" id="newfl"></td>
          <td><input type="text" id="newf1"></td>
          <td><input type="text" id="newf2"></td>
