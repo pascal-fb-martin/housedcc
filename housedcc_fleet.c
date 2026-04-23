@@ -134,7 +134,6 @@ typedef struct {
 
 typedef struct {
     char name[15];
-    char type;
     short count;
     DccFunction functions[FUNCTION_MAX];
 } DccModel;
@@ -188,25 +187,8 @@ static int housedcc_fleet_find_address (int address) {
     return -1;
 }
 
-static int housedcc_fleet_totype (const char *type) {
-    if (!strcmp(type, "engine")) return VEHICLE_TYPE_ENGINE;
-    if (!strcmp(type, "locomotive")) return VEHICLE_TYPE_ENGINE; // Synonym.
-    if (!strcmp(type, "car")) return VEHICLE_TYPE_CAR;
-    if (!strcmp(type, "dummy")) return VEHICLE_TYPE_NODCC;
-    return VEHICLE_TYPE_NODCC;
-}
-
-static const char *housedcc_fleet_toname (int type) {
-    switch (type) {
-    case VEHICLE_TYPE_ENGINE: return "engine";
-    case VEHICLE_TYPE_CAR:    return "car";
-    }
-    DEBUG ("unknown vehicle type %d\n", type);
-    return "dummy";
-}
-
-void housedcc_fleet_declare (const char *model, const char *type,
-                               int count, const char *functions[]) {
+void housedcc_fleet_declare (const char *model,
+                             int count, const char *functions[]) {
 
     int cursor = housedcc_fleet_find_model (model);
     if (cursor < 0) {
@@ -224,7 +206,6 @@ void housedcc_fleet_declare (const char *model, const char *type,
         }
         strtcpy (Models[cursor].name, model, sizeof(Models[0].name));
     }
-    Models[cursor].type = housedcc_fleet_totype (type);
 
     if (count > FUNCTION_MAX) count = FUNCTION_MAX;
     Models[cursor].count = count;
@@ -240,7 +221,7 @@ void housedcc_fleet_declare (const char *model, const char *type,
             Models[cursor].functions[i].index = (char)atoi(sep+1);
         }
     }
-    houselog_event ("MODEL", model, "CREATED", "TYPE %s", type);
+    houselog_event ("MODEL", model, "CREATED", "");
 }
 
 static int housedcc_fleet_valid_address (int address) {
@@ -427,8 +408,7 @@ int housedcc_fleet_status (char *buffer, int size) {
         char modelinfo[72];
         if (model) {
             snprintf (modelinfo, sizeof(modelinfo),
-                      ",\"model\":\"%s\",\"type\":\"%s\"",
-                      model->name, housedcc_fleet_toname (model->type));
+                      ",\"model\":\"%s\"", model->name);
         } else {
             modelinfo[0] = 0;
         }
@@ -522,12 +502,10 @@ static const char *housedcc_fleet_reload_models (void) {
         int item = list[i];
         if (item <= 0) continue;
         const char *name = houseconfig_string (item, ".name");
-        const char *type = houseconfig_string (item, ".type");
-        if ((!name) || (!type)) continue;
+        if (!name) continue;
 
         DccModel *thismodel = Models + ModelsCount++;
         strtcpy (thismodel->name, name, sizeof(Models[0].name));
-        thismodel->type = housedcc_fleet_totype (type);
         thismodel->count = 0;
 
         int devices = houseconfig_array (item, ".devices");
@@ -619,10 +597,7 @@ int housedcc_fleet_export (char *buffer, int size, const char *prefix) {
         if (!model->name[0]) continue; // Ignore obsolete entries.
 
         cursor += snprintf (buffer+cursor, size-cursor,
-                            "%s{\"name\":\"%s\",\"type\":\"%s\"",
-                            prefix,
-                            model->name,
-                            housedcc_fleet_toname (model->type));
+                            "%s{\"name\":\"%s\"", prefix, model->name);
 
         if (model->count > 0) {
            const char *prefix2 = ",\"devices\":[";

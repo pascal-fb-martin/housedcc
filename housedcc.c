@@ -248,11 +248,10 @@ static const char *dcc_addModel (const char *method, const char *uri,
                                  const char *data, int length) {
 
     const char *model = echttp_parameter_get("model");
-    const char *type = echttp_parameter_get("type");
     const char *dev = echttp_parameter_get("devices");
 
-    if ((!model) || (!type)) {
-        echttp_error (404, "missing model name or type");
+    if (!model) {
+        echttp_error (404, "missing model name");
         return "";
     }
 
@@ -274,7 +273,7 @@ static const char *dcc_addModel (const char *method, const char *uri,
           if (count >= 16) break; // Avoid overflow.
        }
     }
-    housedcc_fleet_declare (model, type, count, accessories);
+    housedcc_fleet_declare (model, count, accessories);
     return dcc_save ("MODEL ADDED");
 }
 
