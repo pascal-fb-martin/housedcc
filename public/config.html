@@ -2,11 +2,12 @@
 <html>
 <head>
 <link rel=stylesheet type="text/css" href="/house.css" title="House">
+<link rel=stylesheet type="text/css" href="/dcc/housedcc.css" title="House">
 <script>
 
 var DccKnownConfig = 0;
 
-var index2Function = [null, "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12", "fl"];
+var index2Function = ["fl", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11", "f12"];
 
 function getTag (category, name) {
    return category + name.replace (/ /g,'-');
@@ -49,25 +50,40 @@ function dccShowModels (models) {
         column.innerHTML = model.name;
         row.appendChild(column);
 
-        var column = document.createElement("td");
+        column = document.createElement("td");
         column.innerHTML = model.scale;
         row.appendChild(column);
 
+        column = document.createElement("td");
         var x = new Array();
         if (model.devices) {
             for (var j = model.devices.length - 1; j >= 0; --j) {
                 x[model.devices[j].index] = model.devices[j].name;
             }
         }
+        if (x[13]) x[0] = x[13]; // Compatibility with FL = 13.
+        for (var j = 0; j < index2Function.length; ++j) {
+            if (x[j]) {
+                var item = document.createElement("div");
+                item.width = '100%';
+                item.innerHTML = index2Function[j].toUpperCase()+': '+x[j];
+                column.appendChild(item);
+            }
+        }
+        row.appendChild(column);
 
         column = document.createElement("td");
-        column.innerHTML = (x[13])?x[13]:'';
-        row.appendChild(column);
-        for (var j = 1; j <= 12; ++j) {
-            column = document.createElement("td");
-            column.innerHTML = (x[j])?x[j]:'';
-            row.appendChild(column);
+        if (model.speeds) {
+            for (var j = 0; j <= 12; ++j) {
+                if (!model.speeds[j]) continue;
+                var item = document.createElement("div");
+                item.width = '100%';
+                item.innerHTML = ''+(j+2)+': '+model.speeds[j];
+                column.appendChild(item);
+            }
         }
+        row.appendChild(column);
+
         column = document.createElement("td");
         column.appendChild (newAction ("Delete", deleteVehicle, model.name));
         row.appendChild(column);
@@ -151,14 +167,28 @@ function addModel () {
     var data = document.getElementById ('newname').value;
     if (!data) return;
     var url = "/dcc/fleet/vehicle/model?model=" + data;
+
     var data = document.getElementById ('newscale').value;
     if (data) url += '&scale=' + data;
+
     var functions = '';
-    for (var i = 1; i < index2Function.length; ++i) {
+    for (var i = 0; i < index2Function.length; ++i) {
        data = document.getElementById ('new'+index2Function[i]).value;
        if (data) functions += '+'+data+':'+i;
     }
     if (functions.length > 1) url += '&devices=' + functions.slice (1);
+
+    var speeds = '';
+    var last;
+    for (last = 28; last >= 2; --last) {
+      var element = document.getElementById ('newspeed'+last);
+      if (element) if (element.value != 0) break;
+    }
+    for (var i = 2; i <= last; ++i) {
+       speeds += '+'+document.getElementById ('newspeed'+i).value;
+    }
+    if (speeds.length > 1) url += '&speeds=' + speeds.slice (1);
+
     dccCommand (url);
 }
 
@@ -227,42 +257,48 @@ window.onload = function() {
    </table>
    <br>
    <h1>Vehicle Models</h1>
-   <table id="modellist" class="housewidetable" border="0">
+   <table id="modellist">
       <tr>
          <th width="10%">NAME</th>
          <th width="4%">SCALE</th>
-         <th width="6%">FL</th>
-         <th width="6%">F1</th>
-         <th width="6%">F2</th>
-         <th width="6%">F3</th>
-         <th width="6%">F4</th>
-         <th width="6%">F5</th>
-         <th width="6%">F6</th>
-         <th width="6%">F7</th>
-         <th width="6%">F8</th>
-         <th width="6%">F9</th>
-         <th width="6%">F10</th>
-         <th width="6%">F11</th>
-         <th width="6%">F12</th>
-         <th width="8%"></th>
+         <th width="15%">FUNCTIONS</th>
+         <th width="15%">SPEED STEPS</th>
+         <th width="56%"></th>
       </tr>
       <tr>
          <td><input type="text" id="newname"></td>
          <td><input type="text" id="newscale"></td>
-         <td><input type="text" id="newfl"></td>
-         <td><input type="text" id="newf1"></td>
-         <td><input type="text" id="newf2"></td>
-         <td><input type="text" id="newf3"></td>
-         <td><input type="text" id="newf4"></td>
-         <td><input type="text" id="newf5"></td>
-         <td><input type="text" id="newf6"></td>
-         <td><input type="text" id="newf7"></td>
-         <td><input type="text" id="newf8"></td>
-         <td><input type="text" id="newf9"></td>
-         <td><input type="text" id="newf10"></td>
-         <td><input type="text" id="newf11"></td>
-         <td><input type="text" id="newf12"></td>
-         <td><button type="button" onclick="addModel()">Add</button></td>
+         <td><div class="featuregrid">
+         <div>FL:</div><input type="text" id="newfl">
+         <div>F1:</div><input type="text" id="newf1">
+         <div>F2:</div><input type="text" id="newf2">
+         <div>F3:</div><input type="text" id="newf3">
+         <div>F4:</div><input type="text" id="newf4">
+         <div>F5:</div><input type="text" id="newf5">
+         <div>F6:</div><input type="text" id="newf6">
+         <div>F7:</div><input type="text" id="newf7">
+         <div>F8:</div><input type="text" id="newf8">
+         <div>F9:</div><input type="text" id="newf9">
+         <div>F10:</div><input type="text" id="newf10">
+         <div>F11:</div><input type="text" id="newf11">
+         <div>F12:</div><input type="text" id="newf12">
+         </div></td>
+         <td><div class="featuregrid">
+         <div>2:</div><input type="number" id="newspeed2">
+         <div>3:</div><input type="number" id="newspeed3">
+         <div>4:</div><input type="number" id="newspeed4">
+         <div>5:</div><input type="number" id="newspeed5">
+         <div>6:</div><input type="number" id="newspeed6">
+         <div>7:</div><input type="number" id="newspeed7">
+         <div>8:</div><input type="number" id="newspeed8">
+         <div>9:</div><input type="number" id="newspeed9">
+         <div>10:</div><input type="number" id="newspeed10">
+         <div>11:</div><input type="number" id="newspeed11">
+         <div>12:</div><input type="number" id="newspeed12">
+         <div>13:</div><input type="number" id="newspeed13">
+         <div>14:</div><input type="number" id="newspeed14">
+         </div></td>
+         <td style="vertical-align: top;"><button type="button" onclick="addModel()">Add</button></td>
       </tr>
    </table>
    <br>

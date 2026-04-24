@@ -1,0 +1,16 @@
+.featuregrid {
+   display: grid;
+   grid-template-columns: repeat(2, minmax(10px, 1fr));
+   gap: 2px;
+   text-align: left;
+}
+
+#modellist {
+   border: 0;
+   width: 100%;
+}
+
+#modellist td {
+   vertical-align: top;
+}
+

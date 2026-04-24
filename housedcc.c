@@ -136,12 +136,7 @@ static const char *dcc_move (const char *method, const char *uri,
     }
     int speedvalue = atoi (speed);
 
-    if (isdigit(id[0])) {
-       if (! housedcc_pidcc_move (atoi(id), speedvalue)) {
-            echttp_error (500, "DCC failure");
-            return "";
-       }
-    } else if (! housedcc_consist_move (id, speedvalue)) {
+    if (! housedcc_consist_move (id, speedvalue)) {
         if (! housedcc_fleet_move (id, speedvalue)) {
             echttp_error (404, "invalid ID");
             return "";
@@ -164,7 +159,7 @@ static const char *dcc_stop (const char *method, const char *uri,
             echttp_error (500, "DCC failure");
             return "";
         }
-        housedcc_fleet_stopped ();
+        housedcc_fleet_stopped (emergency);
         housedcc_consist_stopped ();
 
     } else if (isdigit(id[0])) {
@@ -250,31 +245,50 @@ static const char *dcc_addModel (const char *method, const char *uri,
     const char *model = echttp_parameter_get("model");
     const char *scale = echttp_parameter_get("scale");
     const char *dev = echttp_parameter_get("devices");
+    const char *speeds = echttp_parameter_get("speeds");
 
     if (!model) {
         echttp_error (404, "missing model name");
         return "";
     }
 
-    int count = 0;
+    int acount = 0;
     const char *accessories[16];
+    char localcopy[512];
 
     if (dev && (*dev > 0)) {
 
-       char localcopy[512];
        strtcpy (localcopy, dev, sizeof(localcopy));
 
        char *cursor = localcopy;
-       accessories[count++] = cursor;
+       accessories[acount++] = cursor;
        while (*(++cursor) > 0) {
           if (*cursor == '+') {
              *cursor  = 0;
-             accessories[count++] = cursor + 1;
+             accessories[acount++] = cursor + 1;
           }
-          if (count >= 16) break; // Avoid overflow.
+          if (acount >= 16) break; // Avoid overflow.
        }
     }
-    housedcc_fleet_declare (model, scale, count, accessories);
+
+    int scount = 0;
+    short speedtable[32];
+
+    if (speeds && (*speeds > 0)) {
+       char localcopy2[512];
+       strtcpy (localcopy2, speeds, sizeof(localcopy));
+
+       char *cursor;
+       speedtable[scount++] = (short)strtol(localcopy2, &cursor, 10);
+       while (*cursor > 0) {
+          if (*cursor != '+') break;
+          cursor += 1;
+          speedtable[scount++] = (short)strtol(cursor, &cursor, 10);
+          if (scount >= 32) break; // Avoid overflow.
+       }
+    }
+    housedcc_fleet_declare (model, scale,
+                            acount, accessories, scount, speedtable);
     return dcc_save ("MODEL ADDED");
 }
 

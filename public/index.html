@@ -44,26 +44,16 @@ function dccSetDevice () {
     dccCommand (url);
 }
 
-function dccSetSpeed (id, speed) {
+function dccMoveCommand (id, speed) {
     dccCommand ("/dcc/fleet/move?id="+ id + "&speed=" + speed);
 }
 
-function dccIncreaseSpeed () {
-    if (this.resourceState >= 28) return;
-    dccSetSpeed (this.resourceId, this.resourceState + 1);
-}
-
-function dccDecreaseSpeed () {
-    if (this.resourceState <= -28) return;
-    dccSetSpeed (this.resourceId, this.resourceState - 1);
-}
-
-function dccExact () {
-    dccSetSpeed (this.resourceId, this.resourceState);
+function dccSpeed () {
+    dccMoveCommand (this.resourceId, this.resourceState);
 }
 
 function dccStop () {
-    dccCommand ("/dcc/fleet/stop?id="+ this.resourceId + "&urgent=1");
+    dccCommand ("/dcc/fleet/stop?id="+ this.resourceId);
 }
 
 function dccStopAll () {
@@ -126,17 +116,23 @@ function dccShowVehicles (response) {
         }
         row.appendChild(column);
 
-        column = document.createElement("td");
-        column.appendChild (newAction (vehicle.id, '&#x25C0 -',
-                            dccDecreaseSpeed, vehicle.speed));
-        column.appendChild (newAction (vehicle.id, '&#x25C0 5', dccExact, -5));
-        column.appendChild (newAction (vehicle.id, '&#x25C0 3', dccExact, -3));
-        column.appendChild (newAction (vehicle.id, "STOP", dccStop, 0));
-        column.appendChild (newAction (vehicle.id, '3 &#x25B6', dccExact, 3));
-        column.appendChild (newAction (vehicle.id, '5 &#x25B6', dccExact, 5));
-        column.appendChild (newAction (vehicle.id, '+ &#x25B6',
-                                       dccIncreaseSpeed, vehicle.speed));
-        row.appendChild(column);
+        if (vehicle.speeds) {
+            column = document.createElement("td");
+            for (var i = vehicle.speeds.length-1; i >= 0; --i) {
+                column.appendChild (newAction (vehicle.id,
+                                               '&#x25C0 '+vehicle.speeds[i],
+                                               dccSpeed,
+                                               0 - vehicle.speeds[i]));
+            }
+            column.appendChild (newAction (vehicle.id, "STOP", dccStop, 0));
+            for (var i = 0; i < vehicle.speeds.length; ++i) {
+                column.appendChild (newAction (vehicle.id,
+                                               ''+vehicle.speeds[i]+' &#x25B6',
+                                               dccSpeed,
+                                               vehicle.speeds[i]));
+            }
+            row.appendChild(column);
+        }
     }
 }
 
