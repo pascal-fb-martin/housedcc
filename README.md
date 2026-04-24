@@ -49,20 +49,23 @@ The full configuration is actually split into two parts: static configuration an
 Set which GPIO pins will be used to transmit the DCC signal. If pin B is provided, its output will reflect the opposite value of pin A. This matches how most motor controls circuits used as signal injector work: (0, 0) is no power, (1, 0) is positive voltage and (0, 1) is negative voltage.
 
 ```
-/dcc/fleet/status[?known=NUMBER]
+/dcc/fleet/status[?known=NUMBER][&layout=STRING]
 ```
 
-Return the current list of vehicles, with their speed and accessories state. A `train.layout` item allows the client to select which HouseDCC service to interact with if there are multiple instances.
+Return the current list of vehicles, with their speed, speed table and accessories state. A `train.layout` item allows the client to select which HouseDCC service to interact with if there are multiple instances.
 
 The response includes the ID of the latest change. This ID is a number that changes whenever the status or the configuration changes. There is no other semantic to the ID value.
 
 If the `known` parameter is provided, and its value is the same as the current value of the ID of the latest change, then an HTTP code 304 (not modified) is returned instead of the normal response. This is used as a way to save processing on both sides: if nothing has changed the server is not forced to dump its current status, the response is small and the client does not need to refresh data for no reason.
 
+If the `layout` parameter is provided, the service responds with HTTP status 421 if its actual layout does not match the requested one. This option allows for an optimized discovery of the service managing a specific layout. This minimizes the discovery overhead because the non-matching services do not need to build a JSON response and the client only needs to decode a JSON response when it found the matching service.
 ```
 /dcc/fleet/move?id=STRING&speed=INTEGER
 ```
 
-Control the movement of a locomotive or train. A negative speed means reverse direction.
+Control the movement of a locomotive or train. A negative speed means reverse direction. The speed value represents the _prototype_ speed, i.e. the speed that the train would have at full scale. By convention (decided in the model's configuration), this is a speed in Km/h or Mph.
+
+The speed value used must map to a DCC speed step in the speed table of this locomotive's model configuration. See the `/dcc/fleet/status` endpoint.
 
 ```
 /dcc/fleet/set?id=STRING&device=STRING&state=ON|OFF

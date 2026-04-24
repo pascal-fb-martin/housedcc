@@ -118,18 +118,18 @@ function dccShowVehicles (response) {
 
         if (vehicle.speeds) {
             column = document.createElement("td");
-            for (var i = vehicle.speeds.length-1; i >= 0; --i) {
+            for (var j = vehicle.speeds.length-1; j >= 0; --j) {
                 column.appendChild (newAction (vehicle.id,
-                                               '&#x25C0 '+vehicle.speeds[i],
+                                               '&#x25C0 '+vehicle.speeds[j],
                                                dccSpeed,
-                                               0 - vehicle.speeds[i]));
+                                               0 - vehicle.speeds[j]));
             }
             column.appendChild (newAction (vehicle.id, "STOP", dccStop, 0));
-            for (var i = 0; i < vehicle.speeds.length; ++i) {
+            for (var j = 0; j < vehicle.speeds.length; ++j) {
                 column.appendChild (newAction (vehicle.id,
-                                               ''+vehicle.speeds[i]+' &#x25B6',
+                                               ''+vehicle.speeds[j]+' &#x25B6',
                                                dccSpeed,
-                                               vehicle.speeds[i]));
+                                               vehicle.speeds[j]));
             }
             row.appendChild(column);
         }

@@ -27,8 +27,8 @@
  * - Move a locomotive forward, backward or stop.
  * - control vehicles functions.
  *
- * Its main purpose is to convert a locomotive ID to a DCC address,
- * a device ID to a function code and a speed (Km/h) to a DCC step value.
+ * Its main purpose is to convert a locomotive ID to a DCC address, a
+ * device ID to a function code and a speed (Km/h or Mph) to a DCC step value.
  *
  * A vehicle ID is a string, up to 10 characters, that should typically start
  * with a mark (up to 4 alphabetical characters) followed by a vehicle number
@@ -53,8 +53,9 @@
  *    A function string uses the format <name>:<index>, where index 0
  *    means FL and index 1..12 means F1..F12.
  *
- *    The speed array contains values in Km/h. Value at index 0 represents DCC
- *    speed step 2, the value at index 1 represents DCC speed step 3, etc.
+ *    The speed array contains prototype speed values in Km/h or Mph. Value
+ *    at index 0 represents DCC speed step 2, the value at index 1 represents
+ *    DCC speed step 3, etc.
  *
  * const char *housedcc_fleet_add (const char *id, const char *model, int address);
  *
@@ -149,7 +150,7 @@ typedef struct {
 typedef struct {
     char id[15];
     short address;
-    short speed;   // 'prototype' speed in Km/h.
+    short speed;   // 'prototype' speed in Km/h or Mph.
     short step;    // The translation of the 'prototype' speed to DCC step.
     short functions;
     time_t deadline;
@@ -601,17 +602,21 @@ static const char *housedcc_fleet_reload_models (void) {
         }
 
         int speeds = houseconfig_array (item, ".speeds");
-        if (speeds <= 0) continue;
-        int speedcount = houseconfig_array_length (speeds);
-        if (speedcount <= 0) continue;
-        if (speedcount > SPEED_STEP_MAX) speedcount = SPEED_STEP_MAX;
+        if (speeds > 0) {
+            int speedcount = houseconfig_array_length (speeds);
+            if (speedcount <= 0) continue;
+            if (speedcount > SPEED_STEP_MAX) speedcount = SPEED_STEP_MAX;
 
-        int speedlist[SPEED_STEP_MAX];
-        speedcount = houseconfig_enumerate (speeds, speedlist, SPEED_STEP_MAX);
-        for (j = 0; j < speedcount; ++j) {
-           int item = speedlist[j];
-           if (item <= 0) continue;
-           thismodel->speeds[j] = houseconfig_integer (item, 0);
+            int speedlist[SPEED_STEP_MAX];
+            speedcount = houseconfig_enumerate (speeds, speedlist, SPEED_STEP_MAX);
+            for (j = 0; j < speedcount; ++j) {
+               int item = speedlist[j];
+               if (item <= 0) continue;
+               thismodel->speeds[j] = houseconfig_integer (item, 0);
+            }
+        } else {
+            // Set an arbitrary set of speed steps for compatibility
+           for (j = 0; j < 12; ++j) thismodel->speeds[j] = (j+2) * 10;
         }
         for (; j < SPEED_STEP_MAX; ++j) thismodel->speeds[j] = 0;
     }
