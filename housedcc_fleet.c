@@ -345,7 +345,7 @@ int housedcc_fleet_move (const char *id, int speed) {
         int i;
         for (i = 0; i < SPEED_STEP_MAX; ++i) {
            if (model->speeds[i] == absspeed) {
-              step = sign * (i + 2);
+              step = sign * (i + 1);
               break;
            }
         }
@@ -354,6 +354,15 @@ int housedcc_fleet_move (const char *id, int speed) {
         if (step < -31) step = -31;
         else if (step > 31) step = 31;
 
+        if (vehicle->speed) {
+            int existingsign = ((vehicle->speed) < 0)?-1:1;
+            if (sign != existingsign) {
+               // The locomotive is reversing direction. DCC expect a stop
+               // command first.
+               int dir = (Vehicles[cursor].speed >= 0)? 1 : 0;
+               housedcc_pidcc_stop (vehicle->address, 0, dir);
+            }
+        }
         const char *direction = (speed < 0)?"REVERSE":"FORWARD";
         houselog_event ("VEHICLE", vehicle->id, direction,
                         "AT %d KM/H (DCC STEP %d)", absspeed, abs(step));
@@ -361,7 +370,7 @@ int housedcc_fleet_move (const char *id, int speed) {
         vehicle->speed = speed;
         vehicle->step = step;
     }
-    Vehicles[cursor].deadline = time(0) + 10; // TBD: make it configurable
+    Vehicles[cursor].deadline = time(0) + 7; // TBD: make it configurable
     return housedcc_pidcc_move (vehicle->address, vehicle->step);
 }
 
@@ -372,8 +381,10 @@ int housedcc_fleet_stop (const char *id, int emergency) {
 
     houselog_event ("VEHICLE", Vehicles[cursor].id, "STOP",
                     emergency?"EMERGENCY BREAK":"STANDARD BREAK");
+
+    int dir = (Vehicles[cursor].speed >= 0)? 1 : 0;
     housedcc_fleet_stationary (Vehicles + cursor);
-    return housedcc_pidcc_stop (Vehicles[cursor].address, emergency);
+    return housedcc_pidcc_stop (Vehicles[cursor].address, emergency, dir);
 }
 
 void housedcc_fleet_stopped (int emergency) {
@@ -616,7 +627,7 @@ static const char *housedcc_fleet_reload_models (void) {
             }
         } else {
             // Set an arbitrary set of speed steps for compatibility
-           for (j = 0; j < 12; ++j) thismodel->speeds[j] = (j+2) * 10;
+           for (j = 0; j < 12; ++j) thismodel->speeds[j] = (j+1) * 10;
         }
         for (; j < SPEED_STEP_MAX; ++j) thismodel->speeds[j] = 0;
     }

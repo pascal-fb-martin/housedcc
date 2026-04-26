@@ -50,10 +50,17 @@
  *
  *    Return <= 0 on error, >= 1 otherwise.
  *
- * int housedcc_pidcc_stop (int address, int emergency);
+ * int housedcc_pidcc_stop (int address, int emergency, int direction);
  *
  *    Order one or all locomotives to stop. And emergency stop is immediate
  *    (e.g. not bound to a deceleration curve). Address 0 is all locomotives.
+ *
+ *    It may seem pointless to have a direction of travel on a stop command,
+ *    but this is an option in the DCC command. This is meaningful because
+ *    it controls the direction of the locomotive light (if turned on).
+ *    To keep this light from flip-flopping, it is best to keep it in the
+ *    previous state as much as possible. Since that context is held by
+ *    the caller, this is an argument here.
  *
  *    Return <= 0 on error, >= 1 otherwise.
  *
@@ -291,14 +298,16 @@ int housedcc_pidcc_move (int address, int speed) {
     return housedcc_pidcc_write (command, l);
 }
 
-int housedcc_pidcc_stop (int address, int emergency) {
+int housedcc_pidcc_stop (int address, int emergency, int direction) {
 
     if ((address < 0) || (address >= 128)) return 0; // Not supported yet.
     // No state check: a stop is a safety command.
 
+    // The direction determine which light is on (forward or reverse).
     char command[32];
     int l = snprintf (command, sizeof(command), "send %d %d",
-                      address & 0x7f, 0x60 + (emergency?1:0));
+                      address & 0x7f,
+                      0x40 + (direction?0x20:0) + (emergency?1:0));
 
     return housedcc_pidcc_write (command, l);
 }

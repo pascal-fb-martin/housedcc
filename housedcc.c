@@ -155,19 +155,15 @@ static const char *dcc_stop (const char *method, const char *uri,
     int emergency = urgent?atoi(urgent):0;
 
     if (!id) {
-        if (! housedcc_pidcc_stop (0, emergency)) {
+        // Since this is a command to all locomotives, we do not have
+        // a context to tell us what is the current direction of travel.
+        // Forward is the most reasonable assumption here.
+        if (! housedcc_pidcc_stop (0, emergency, 1)) {
             echttp_error (500, "DCC failure");
             return "";
         }
         housedcc_fleet_stopped (emergency);
         housedcc_consist_stopped ();
-
-    } else if (isdigit(id[0])) {
-
-       if (! housedcc_pidcc_stop (atoi(id), emergency)) {
-            echttp_error (500, "DCC failure");
-            return "";
-       }
 
     } else if (! housedcc_consist_stop (id, emergency)) {
 

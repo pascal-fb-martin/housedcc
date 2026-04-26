@@ -78,7 +78,7 @@ function dccShowModels (models) {
                 if (!model.speeds[j]) continue;
                 var item = document.createElement("div");
                 item.width = '100%';
-                item.innerHTML = ''+(j+2)+': '+model.speeds[j];
+                item.innerHTML = ''+(j+1)+': '+model.speeds[j];
                 column.appendChild(item);
             }
         }
@@ -180,11 +180,11 @@ function addModel () {
 
     var speeds = '';
     var last;
-    for (last = 28; last >= 2; --last) {
+    for (last = 28; last >= 1; --last) {
       var element = document.getElementById ('newspeed'+last);
       if (element) if (element.value != 0) break;
     }
-    for (var i = 2; i <= last; ++i) {
+    for (var i = 1; i <= last; ++i) {
        speeds += '+'+document.getElementById ('newspeed'+i).value;
     }
     if (speeds.length > 1) url += '&speeds=' + speeds.slice (1);
@@ -284,6 +284,7 @@ window.onload = function() {
          <div>F12:</div><input type="text" id="newf12">
          </div></td>
          <td><div class="featuregrid">
+         <div>1:</div><input type="number" id="newspeed1">
          <div>2:</div><input type="number" id="newspeed2">
          <div>3:</div><input type="number" id="newspeed3">
          <div>4:</div><input type="number" id="newspeed4">
@@ -296,7 +297,6 @@ window.onload = function() {
          <div>11:</div><input type="number" id="newspeed11">
          <div>12:</div><input type="number" id="newspeed12">
          <div>13:</div><input type="number" id="newspeed13">
-         <div>14:</div><input type="number" id="newspeed14">
          </div></td>
          <td style="vertical-align: top;"><button type="button" onclick="addModel()">Add</button></td>
       </tr>
