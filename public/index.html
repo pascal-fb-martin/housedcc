@@ -162,7 +162,7 @@ window.onload = function() {
    <title>Train Dashboard</title>
 </head>
 <body>
-   <header>
+   <nav>
    <table>
    <tr>
    <td><span>Dashboard</span></td>
@@ -171,7 +171,9 @@ window.onload = function() {
    <td><a href="/dcc/capture.html">Capture</a></td>
    </tr>
    </table>
-   </header>
+   </nav>
+   <main>
+   <article>
    <section>
    <table class="housewidetable" border="0">
    <tr>
@@ -179,6 +181,8 @@ window.onload = function() {
       <td width="10%"><button class="housepanelbutton" style="background-color: red;" onclick="dccStopAll()">STOP</button></td>
    </td></tr>
    </table>
+   </section>
+   <section>
    <h1>Locomotives</h1>
    <table id="vehicles" class="housewidetable" border="0">
       <tr>
@@ -191,6 +195,8 @@ window.onload = function() {
          <th width="48%">COMMANDS</th>
       </tr>
    </table>
+   </section>
+   <section>
    <h1>Train Consists</h1>
    <table id="trains" class="housewidetable" border="0">
       <tr>
@@ -202,6 +208,8 @@ window.onload = function() {
       </tr>
    </table>
    </section>
+   </article>
+   </main>
 </body>
 </html>
 
