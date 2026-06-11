@@ -373,6 +373,20 @@ static const char *dcc_deleteConsist (const char *method, const char *uri,
     return dcc_save ("CONSIST DELETED");
 }
 
+static const char *dcc_switch (const char *method, const char *uri,
+                               const char *data, int length) {
+
+    echttp_error (500, "not yet implemented");
+    return "";
+}
+
+static const char *dcc_signal (const char *method, const char *uri,
+                               const char *data, int length) {
+
+    echttp_error (500, "not yet implemented");
+    return "";
+}
+
 static const char *dcc_config (const char *method, const char *uri,
                                const char *data, int length) {
 
@@ -453,7 +467,7 @@ int main (int argc, const char **argv) {
 
     echttp_route_uri ("/dcc/gpio", dcc_gpio);
 
-    echttp_route_uri ("/dcc/fleet/status", dcc_status);
+    echttp_route_uri ("/dcc//status",      dcc_status);
     echttp_route_uri ("/dcc/fleet/move",   dcc_move);
     echttp_route_uri ("/dcc/fleet/set",    dcc_set);
     echttp_route_uri ("/dcc/fleet/stop",   dcc_stop);
@@ -464,6 +478,8 @@ int main (int argc, const char **argv) {
     echttp_route_uri ("/dcc/fleet/consist/assign", dcc_assign);
     echttp_route_uri ("/dcc/fleet/consist/remove", dcc_remove);
     echttp_route_uri ("/dcc/fleet/consist/delete", dcc_deleteConsist);
+    echttp_route_uri ("/dcc/switch/set",   dcc_switch);
+    echttp_route_uri ("/dcc/signal/set",   dcc_signal);
     echttp_route_uri ("/dcc/fleet/config", dcc_config);
 
     echttp_static_route ("/", "/usr/local/share/house/public");
