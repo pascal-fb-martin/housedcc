@@ -57,7 +57,7 @@ function dccStop () {
 }
 
 function dccStopAll () {
-    dccCommand ("/dcc/fleet/stop?&urgent=1");
+    dccCommand ("/dcc/fleet/stop?urgent=1");
 }
 
 function dccSortVehicle (a, b) {
@@ -119,6 +119,7 @@ function dccShowVehicles (response) {
         if (vehicle.speeds) {
             column = document.createElement("td");
             for (var j = vehicle.speeds.length-1; j >= 0; --j) {
+                if (vehicle.speeds[j] <= 0) continue;
                 column.appendChild (newAction (vehicle.id,
                                                '&#x25C0 '+vehicle.speeds[j],
                                                dccSpeed,
@@ -126,6 +127,7 @@ function dccShowVehicles (response) {
             }
             column.appendChild (newAction (vehicle.id, "STOP", dccStop, 0));
             for (var j = 0; j < vehicle.speeds.length; ++j) {
+                if (vehicle.speeds[j] <= 0) continue;
                 column.appendChild (newAction (vehicle.id,
                                                ''+vehicle.speeds[j]+' &#x25B6',
                                                dccSpeed,
