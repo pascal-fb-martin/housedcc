@@ -150,7 +150,7 @@ function dccShowStatus (response) {
 }
 
 function dccStatus () {
-    var url = "/dcc/fleet/status";
+    var url = "/dcc/status";
     if (DccLastStatus) url += "?known=" + DccLastStatus;
     dccCommand (url);
 }
@@ -161,7 +161,7 @@ window.onload = function() {
 };
 </script>
 <head>
-   <title>Train Dashboard</title>
+   <title>DCC Dashboard</title>
 </head>
 <body>
    <nav>
@@ -199,7 +199,7 @@ window.onload = function() {
    </table>
    </section>
    <section>
-   <h1>Train Consists</h1>
+   <h1>DCC Consists</h1>
    <table id="trains" class="housewidetable" border="0">
       <tr>
          <th width="10%">ID</th>

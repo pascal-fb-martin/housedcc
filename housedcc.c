@@ -467,7 +467,7 @@ int main (int argc, const char **argv) {
 
     echttp_route_uri ("/dcc/gpio", dcc_gpio);
 
-    echttp_route_uri ("/dcc//status",      dcc_status);
+    echttp_route_uri ("/dcc/status",       dcc_status);
     echttp_route_uri ("/dcc/fleet/move",   dcc_move);
     echttp_route_uri ("/dcc/fleet/set",    dcc_set);
     echttp_route_uri ("/dcc/fleet/stop",   dcc_stop);

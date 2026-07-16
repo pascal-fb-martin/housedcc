@@ -536,7 +536,7 @@ overflow:
 
 int housedcc_fleet_background (time_t now) {
 
-    // DCC engines stop moving after 10 seconds if the speed command
+    // DCC engines stop moving after a few seconds if the speed command
     // is not repeated. This is a safety feature, to prevent runaway
     // vehicle events.
     // This program does not automatically repeat the speed command:
@@ -545,8 +545,11 @@ int housedcc_fleet_background (time_t now) {
     int i;
     int changed = 0;
     for (i = VehiclesCount-1; i >= 0; --i) {
-        if ((Vehicles[i].deadline > 0) && (Vehicles[i].deadline < now)) {
-            housedcc_fleet_stationary (Vehicles + i);
+        DccVehicle *vehicle = Vehicles + i;
+        if ((vehicle->deadline > 0) && (vehicle->deadline < now)) {
+            if (vehicle->speed != 0)
+                houselog_event ("VEHICLE", vehicle->id, "STOP", "ON DEADLINE");
+            housedcc_fleet_stationary (vehicle);
             changed = 1;
         }
     }
