@@ -108,6 +108,12 @@
  *
  *    A function that populates a complete status in JSON.
  *
+ * const char *housedcc_fleet_dcc_direction (int adr, const char *direction);
+ * const char *housedcc_fleet_dcc_speed (int adr, int step);
+ * const char *housedcc_fleet_dcc_set (int adr, int function, int state);
+ *
+ *    These functions offer a raw DCC bypass, for an eventual control
+ *    by DCC aware software. Return null or else an error message.
  */
 
 #include <string.h>
@@ -152,6 +158,7 @@ typedef struct {
     short address;
     short speed;   // 'prototype' speed in Km/h or Mph.
     short step;    // The translation of the 'prototype' speed to DCC step.
+    short dccdirection; // 1 (forward) or -1 (backward).
     short functions;
     time_t deadline;
     DccModel *model;
@@ -161,9 +168,14 @@ static DccModel *Models = 0;
 static int       ModelsCount = 0;
 static int       ModelsAllocated = 0;
 
-static DccVehicle *Vehicles = 0;
-static int         VehiclesCount = 0;
-static int         VehiclesAllocated = 0;
+#define DCC_ADDRESS_LIMIT 128
+
+static DccVehicle Vehicles[DCC_ADDRESS_LIMIT];
+static int        VehiclesCount = 0;
+
+static int housedcc_fleet_valid_address (int address) {
+    return (address > 0) && (address < DCC_ADDRESS_LIMIT);
+}
 
 static int housedcc_fleet_find_model (const char *model) {
 
@@ -188,10 +200,29 @@ static int housedcc_fleet_find (const char *id) {
 }
 
 static int housedcc_fleet_find_address (int address) {
-    int i;
 
+    int i;
+    static short Index[DCC_ADDRESS_LIMIT] = {0};
+
+    // Remember the latest finds to use as search accelerator,
+    // as long as this accelerator still refers to the same locomotive.
+    // This provides some performance boost only if there are more
+    // than 3 locomotives: if there are only a handful, linear search
+    // is fast enough. The locomotive at index 0 never needs acceleration..
+
+    if (VehiclesCount > 3) {
+        if (!housedcc_fleet_valid_address (address)) return -1;
+        int i = Index[address];
+        if ((i > 0) && (i < VehiclesCount) && (address == Vehicles[i].address))
+            return i;
+    }
+
+    // No valid accelerator, do a linear search as fallback.
     for (i = 0; i < VehiclesCount; ++i) {
-        if (address == Vehicles[i].address) return i;
+        if (address == Vehicles[i].address) {
+            Index[address] = (short)i; // Remember it for the next search.
+            return i;
+        }
     }
     DEBUG ("Cannot find address %d\n", address);
     return -1;
@@ -245,10 +276,6 @@ void housedcc_fleet_declare (const char *model, const char *scale,
     houselog_event ("MODEL", model, "CREATED", "");
 }
 
-static int housedcc_fleet_valid_address (int address) {
-    return (address > 0) && (address < 128);
-}
-
 void housedcc_fleet_stationary (DccVehicle *vehicle) {
     vehicle->step = 0;
     vehicle->speed = 0;
@@ -288,11 +315,8 @@ const char *housedcc_fleet_add (const char *id, const char *model, int address) 
             if (Vehicles[cursor].id[0] == 0) break;
         }
         if (cursor >= VehiclesCount) {
-            if (VehiclesCount >= VehiclesAllocated) {
-                VehiclesAllocated += 16;
-                Vehicles = realloc (Vehicles,
-                                    VehiclesAllocated * sizeof(DccVehicle));
-            }
+            if (VehiclesCount >= DCC_ADDRESS_LIMIT)
+                return "too many locomotives"; // Never happen: see synonym
             cursor = VehiclesCount++;
         }
         strtcpy (Vehicles[cursor].id, id, sizeof(Vehicles[0].id));
@@ -326,6 +350,104 @@ void housedcc_fleet_delete (const char *id) {
 
 int housedcc_fleet_exists (const char *id) {
     return housedcc_fleet_find (id) >= 0;
+}
+
+static const char *housedcc_fleet_direction_name (int dirorspeed) {
+    return (dirorspeed >= 0)?"FORWARD":"REVERSE";
+}
+
+const char *housedcc_fleet_dcc_direction (int adr, const char *dir) {
+
+    int cursor = housedcc_fleet_find_address (adr);
+    if (cursor < 0) return "unknown locomotive";
+
+    if (strsame (dir, "forward"))
+        Vehicles[cursor].dccdirection = 1;
+    else if (strsame (dir, "reverse"))
+        Vehicles[cursor].dccdirection = -1;
+    else
+        return "invalid direction";
+    return 0;
+}
+
+const char *housedcc_fleet_dcc_speed (int adr, int step) {
+
+    int cursor = housedcc_fleet_find_address (adr);
+    if (cursor < 0) return "unknown locomotive";
+
+    if ((step < 0) || (step >= 128)) return "invalid step";
+
+    DccVehicle *vehicle = Vehicles + cursor;
+    if (vehicle->step != step) {
+        const char *direction =
+            housedcc_fleet_direction_name (vehicle->dccdirection);
+
+        houselog_event ("VEHICLE", vehicle->id,
+                        "MOVE", "%s AT DCC STEP %d", direction, step);
+        vehicle->step = vehicle->dccdirection * step;
+    }
+    Vehicles[cursor].deadline = time(0) + 7; // TBD: make it configurable
+    if (housedcc_pidcc_move (vehicle->address, vehicle->step) <= 0)
+        return "DCC error";
+    return 0;
+}
+
+static int housedcc_fleet_operate (int cursor, int function, int state) {
+
+    short mask = 1 << function;
+    if (state)
+       mask = Vehicles[cursor].functions | mask;
+    else
+       mask = Vehicles[cursor].functions & (~mask);
+
+    int instruction;
+    if (function <= 4) { // F1 to F4, FL.
+       instruction = 0x80; // CCC=100
+       instruction += (mask >> 1) & 0xf; // F1 to F4
+       instruction += (mask & 1)? 0x10 : 0; // FL
+
+    } else if (function <= 8) { // F5 to F8.
+       instruction = 0xb0; // CCC=101, S=1
+       instruction += (mask >> 5) & 0xf; // F5 to F8
+
+    } else if (function <= 12) { // F9 to F12.
+       instruction = 0xa0; // CCC=101, S=0
+       instruction += (mask >> 9) & 0xf; // F9 to F12
+
+    } else {
+       return 0; // Invalid auxiliary function index.
+    }
+
+    // Remember the current commanded state.
+    Vehicles[cursor].functions = mask;
+
+    return housedcc_pidcc_function (Vehicles[cursor].address, instruction);
+}
+
+const char *housedcc_fleet_dcc_set (int adr, int function, int state) {
+
+    int cursor = housedcc_fleet_find_address (adr);
+    if (cursor < 0) return "unknown locomotive";
+
+    DccModel *model = Vehicles[cursor].model;
+    if (!model) return "unknown model"; // No known DCC functions
+
+    int index = function;
+    if (index == 13) index = 0; // Compatibility with FL = 13.
+
+    int i;
+    for (i = 0; i < model->count; ++i) {
+        if (model->functions[i].index == index) break;
+    }
+    if (i >= model->count) return "unknown function";
+
+    houselog_event ("VEHICLE", Vehicles[cursor].id,
+                    "SET", "DCC %d (%s) TO %s",
+                    function, model->functions[i].name, state?"ON":"OFF");
+
+    if (housedcc_fleet_operate (cursor, index, state) <= 0)
+        return "DCC error";
+    return 0;
 }
 
 int housedcc_fleet_move (const char *id, int speed) {
@@ -363,12 +485,14 @@ int housedcc_fleet_move (const char *id, int speed) {
                housedcc_pidcc_stop (vehicle->address, 0, dir);
             }
         }
-        const char *direction = (speed < 0)?"REVERSE":"FORWARD";
-        houselog_event ("VEHICLE", vehicle->id, direction,
-                        "AT %d KM/H (DCC STEP %d)", absspeed, abs(step));
+        const char *direction = housedcc_fleet_direction_name (speed);
+        houselog_event ("VEHICLE", vehicle->id,
+                        "MOVE", "%s AT %d (DCC STEP %d)",
+                        direction, absspeed, abs(step));
 
         vehicle->speed = speed;
         vehicle->step = step;
+        vehicle->dccdirection = (step >= 0)? 1 : -1;
     }
     Vehicles[cursor].deadline = time(0) + 7; // TBD: make it configurable
     return housedcc_pidcc_move (vehicle->address, vehicle->step);
@@ -404,42 +528,19 @@ int housedcc_fleet_set (const char *id, const char *name, int state) {
     DccModel *model = Vehicles[cursor].model;
     if (!model) return 0; // No known DCC functions
 
-    houselog_event ("VEHICLE", Vehicles[cursor].id,
-                    "SET", "%s TO %s", name, state?"ON":"OFF");
     int i;
     for (i = 0; i < model->count; ++i) {
         if (!strcmp (name, model->functions[i].name)) break;
     }
     if (i >= model->count) return 0; // No such functions.
 
+    houselog_event ("VEHICLE", Vehicles[cursor].id,
+                    "SET", "%s TO %s", name, state?"ON":"OFF");
+
     int index = model->functions[i].index;
     if (index < 0) return 0; // Invalid function.
 
-    short mask = 1 << index;
-    if (state)
-       Vehicles[cursor].functions |= mask;
-    else
-       Vehicles[cursor].functions &= (~mask);
-
-    int instruction;
-    if (index <= 4) { // F1 to F4, FL.
-       instruction = 0x80; // CCC=100
-       instruction += (Vehicles[cursor].functions >> 1) & 0xf; // F1 to F4
-       instruction += (Vehicles[cursor].functions & 1)? 0x10 : 0; // FL
-
-    } else if (index <= 8) { // F5 to F8.
-       instruction = 0xb0; // CCC=101, S=1
-       instruction += (Vehicles[cursor].functions >> 5) & 0xf; // F5 to F8
-
-    } else if (index <= 12) { // F9 to F12.
-       instruction = 0xa0; // CCC=101, S=0
-       instruction += (Vehicles[cursor].functions >> 9) & 0xf; // F9 to F12
-
-    } else {
-       return 0; // Invalid auxiliary function index.
-    }
-
-    return housedcc_pidcc_function (Vehicles[cursor].address, instruction);
+    return housedcc_fleet_operate (cursor, index, state);
 }
 
 static int housedcc_fleet_speeds (char *buffer, int size, DccModel *model) {
@@ -642,13 +743,9 @@ static const char *housedcc_fleet_reload_vehicles (void) {
 
     int vehicles = houseconfig_array (0, ".trains.vehicles");
     int count = 0;
-
     if (vehicles >= 0) count = houseconfig_array_length (vehicles);
 
-    if (Vehicles) free (Vehicles);
     VehiclesCount = 0;
-    VehiclesAllocated = count + 16;
-    Vehicles = calloc (VehiclesAllocated, sizeof(DccVehicle));
 
     if (count <= 0) return 0; // Nothing to load.
 

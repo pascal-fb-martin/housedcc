@@ -134,7 +134,15 @@ Query the current configuration. The optional `known` parameter has the same sem
 /dcc/signal/set?id=STRING&cmd=stop|go
 ```
 
-Change the state of a switch or signal. The status for these accessories is reported using the `/dcc/status` request.
+Change the state of a switch or signal. The status for these accessories is reported using the `/dcc/status` request. Work in progress (DCC decoders are expensive).
+
+```
+/dcc/raw/direction?adr=NUMBER&dir="forward"|"reverse"
+/dcc/raw/speed?adr=NUMBER&step=NUMBER
+/dcc/raw/set?adr=NUMBER&fct=NUMBER&state=0|1
+```
+
+These URLs are meant to allow interfacing with a DCC aware train control software. The locomotive must be listed in the configuration and only the functions named in the model can be operated.
 
 ## Configuration
 

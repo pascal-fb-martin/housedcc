@@ -146,6 +146,79 @@ static const char *dcc_move (const char *method, const char *uri,
     return dcc_status (method, uri, data, length);
 }
 
+static const char *dcc_raw_direction (const char *method, const char *uri,
+                                      const char *data, int length) {
+
+    const char *adr = echttp_parameter_get("adr");
+    const char *dir = echttp_parameter_get("dir");
+
+    if (!adr) {
+        echttp_error (404, "missing DCC address");
+        return "";
+    }
+
+    const char *error = housedcc_fleet_dcc_direction (atoi(adr), dir);
+    if (error) {
+        echttp_error (500, error);
+        return "";
+    }
+    housestate_changed (LiveState);
+    return dcc_status (method, uri, data, length);
+}
+
+static const char *dcc_raw_speed (const char *method, const char *uri,
+                                  const char *data, int length) {
+
+    const char *adr = echttp_parameter_get("adr");
+    const char *step = echttp_parameter_get("step");
+
+    if (!adr) {
+        echttp_error (404, "missing DCC address");
+        return "";
+    }
+    if (!step) {
+        echttp_error (400, "missing speed step");
+        return "";
+    }
+
+    const char *error = housedcc_fleet_dcc_speed (atoi(adr), atoi(step));
+    if (error) {
+        echttp_error (500, error);
+        return "";
+    }
+    housestate_changed (LiveState);
+    return dcc_status (method, uri, data, length);
+}
+
+static const char *dcc_raw_set (const char *method, const char *uri,
+                                const char *data, int length) {
+
+    const char *adr = echttp_parameter_get("adr");
+    const char *fct = echttp_parameter_get("fct");
+    const char *s = echttp_parameter_get("state");
+
+    if (!adr) {
+        echttp_error (404, "missing DCC address");
+        return "";
+    }
+    if (!fct) {
+        echttp_error (400, "missing function");
+        return "";
+    }
+    if (!s) {
+        echttp_error (400, "missing state");
+        return "";
+    }
+
+    const char *error = housedcc_fleet_dcc_set (atoi(adr), atoi(fct), atoi(s));
+    if (error) {
+        echttp_error (500, error);
+        return "";
+    }
+    housestate_changed (LiveState);
+    return dcc_status (method, uri, data, length);
+}
+
 static const char *dcc_stop (const char *method, const char *uri,
                              const char *data, int length) {
 
@@ -481,6 +554,10 @@ int main (int argc, const char **argv) {
     echttp_route_uri ("/dcc/switch/set",   dcc_switch);
     echttp_route_uri ("/dcc/signal/set",   dcc_signal);
     echttp_route_uri ("/dcc/fleet/config", dcc_config);
+
+    echttp_route_uri ("/dcc/raw/direction", dcc_raw_direction);
+    echttp_route_uri ("/dcc/raw/speed",     dcc_raw_speed);
+    echttp_route_uri ("/dcc/raw/set",       dcc_raw_set);
 
     echttp_static_route ("/", "/usr/local/share/house/public");
     echttp_background (&dcc_background);

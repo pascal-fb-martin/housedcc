@@ -40,3 +40,8 @@ int  housedcc_fleet_status (char *buffer, int size);
 
 const char *housedcc_fleet_reload (void);
 int housedcc_fleet_export (char *buffer, int size, const char *prefix);
+
+const char *housedcc_fleet_dcc_direction (int adr, const char *direction);
+const char *housedcc_fleet_dcc_speed (int adr, int step);
+const char *housedcc_fleet_dcc_set (int adr, int function, int state);
+
