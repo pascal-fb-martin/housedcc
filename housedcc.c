@@ -137,8 +137,9 @@ static const char *dcc_move (const char *method, const char *uri,
     int speedvalue = atoi (speed);
 
     if (! housedcc_consist_move (id, speedvalue)) {
-        if (! housedcc_fleet_move (id, speedvalue)) {
-            echttp_error (404, "invalid ID");
+        const char *error = housedcc_fleet_move (id, speedvalue);
+        if (error) {
+            echttp_error (404, error);
             return "";
         }
     }
@@ -248,8 +249,9 @@ static const char *dcc_stop (const char *method, const char *uri,
         // Since this is a command to all locomotives, we do not have
         // a context to tell us what is the current direction of travel.
         // Forward is the most reasonable assumption here.
-        if (! housedcc_pidcc_stop (0, emergency, 1)) {
-            echttp_error (500, "DCC failure");
+        const char *error = housedcc_pidcc_stop (0, emergency, 1);
+        if (error) {
+            echttp_error (500, error);
             return "";
         }
         housedcc_fleet_stopped (emergency);
@@ -257,8 +259,9 @@ static const char *dcc_stop (const char *method, const char *uri,
 
     } else if (! housedcc_consist_stop (id, emergency)) {
 
-        if (! housedcc_fleet_stop (id, emergency)) {
-            echttp_error (404, "invalid ID");
+        const char *error = housedcc_fleet_stop (id, emergency);
+        if (error) {
+            echttp_error (500, error);
             return "";
         }
     }
@@ -287,9 +290,10 @@ static const char *dcc_set (const char *method, const char *uri,
     }
 
     if (isdigit(id[0])) {
-       if (! housedcc_pidcc_function (atoi(id), atoi(state))) {
-            echttp_error (500, "DCC failure");
-            return "";
+       const char *error = housedcc_pidcc_function (atoi(id), atoi(state));
+       if (error) {
+           echttp_error (500, error);
+           return "";
        }
     } else {
        int statevalue;
@@ -302,9 +306,10 @@ static const char *dcc_set (const char *method, const char *uri,
            return "";
        }
 
-       if (! housedcc_fleet_set (id, device, statevalue)) {
-          echttp_error (404, "invalid ID");
-          return "";
+       const char *error = housedcc_fleet_set (id, device, statevalue);
+       if (error) {
+           echttp_error (500, error);
+           return "";
        }
     }
     housestate_changed (LiveState);

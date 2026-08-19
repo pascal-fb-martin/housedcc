@@ -41,16 +41,16 @@
  *
  *    Export this module's current configuration to JSON format.
  *
- * int housedcc_pidcc_move (int address, int speed);
+ * const char *housedcc_pidcc_move (int address, int speed);
  *
  *    Control one locomotive's movements.
  *
  *    A positive speed means forward movement, a negative speed means reverse
  *    movement, while a speed in the range [-1, 1] means stop.
  *
- *    Return <= 0 on error, >= 1 otherwise.
+ *    Return an error string on error, 0 otherwise.
  *
- * int housedcc_pidcc_stop (int address, int emergency, int direction);
+ * const char *housedcc_pidcc_stop (int address, int emergency, int direction);
  *
  *    Order one or all locomotives to stop. And emergency stop is immediate
  *    (e.g. not bound to a deceleration curve). Address 0 is all locomotives.
@@ -62,19 +62,19 @@
  *    previous state as much as possible. Since that context is held by
  *    the caller, this is an argument here.
  *
- *    Return <= 0 on error, >= 1 otherwise.
+ *    Return an error string on error, 0 otherwise.
  *
- * int housedcc_pidcc_function (int address, int instruction);
+ * const char *housedcc_pidcc_function (int address, int instruction);
  *
  *    Control one vehicle's function devices (F0 to F4).
  *
- *    Return <= 0 on error, >= 1 otherwise.
+ *    Return an error string on error, 0 otherwise.
  *
- * int housedcc_pidcc_accessory (int address, int device, int value);
+ * const char *housedcc_pidcc_accessory (int address, int device, int value);
  *
  *    Control one accessory's devices. Typically signals and switches.
  *
- *    Return <= 0 on error, >= 1 otherwise.
+ *    Return an error string on error, 0 otherwise.
  *
  * void housedcc_pidcc_periodic (time_t now);
  *
@@ -123,18 +123,18 @@ static int housedcc_pidcc_enabled (void) {
     return (GpioPinA > 0) || (GpioPinB > 0);
 }
 
-static int housedcc_pidcc_write (const char *text, int length) {
+static const char *housedcc_pidcc_write (const char *text, int length) {
 
     int submit = housedcc_pidcc_enabled();
     housecapture_record (PiDccCapture, "PIDCC", submit?"WRITE":"BUILT", text);
-    if (!submit) return 0; // No configuration.
+    if (!submit) return "no configuration";
 
     char line[256];
     int total = snprintf (line, sizeof(line), "%s\n", text);
     if (write (PiDccTransmit, line, total) <= 0) {
-       return 0;
+       return "pipe failure";
     }
-    return 1;
+    return 0;
 }
 
 void housedcc_pidcc_config (int pina, int pinb) {
@@ -274,7 +274,7 @@ const char *housedcc_pidcc_initialize (int argc, const char **argv) {
     return 0; // No error.
 }
 
-int housedcc_pidcc_move (int address, int speed) {
+const char *housedcc_pidcc_move (int address, int speed) {
 
     static int speed2cssss[29] = {0,   0x2, 0x12, 0x3, 0x13,  //  0  1  2  3  4
                                   0x4, 0x14, 0x5, 0x15, 0x6,  //  5  6  7  8  9
@@ -283,13 +283,13 @@ int housedcc_pidcc_move (int address, int speed) {
                                   0x1b, 0xc, 0x1c, 0xd, 0x1d, // 20 21 22 23 24
                                   0xe, 0x1e, 0xf, 0x1f};      // 25 26 27 28
 
-    if ((address <= 0) || (address >= 128)) return 0; // Not supported yet.
-    if (PiDccState == '*') return 0; // Failed.
+    if ((address <= 0) || (address >= 128)) return "invalid address";
+    if (PiDccState == '*') return "queue full"; // Failed.
 
     char command[32];
     int dir = (speed >= 0) ? 0x20 : 0;
     speed = abs(speed);
-    if (speed > 28) return 0; // Over the limit speed.
+    if (speed > 28) return "unsupported step"; // Over the limit speed.
 
     int l = snprintf (command, sizeof(command), "send %d %d",
                       address & 0x7f,
@@ -298,9 +298,9 @@ int housedcc_pidcc_move (int address, int speed) {
     return housedcc_pidcc_write (command, l);
 }
 
-int housedcc_pidcc_stop (int address, int emergency, int direction) {
+const char *housedcc_pidcc_stop (int address, int emergency, int direction) {
 
-    if ((address < 0) || (address >= 128)) return 0; // Not supported yet.
+    if ((address < 0) || (address >= 128)) return "address not supported";
     // No state check: a stop is a safety command.
 
     // The direction determine which light is on (forward or reverse).
@@ -312,10 +312,10 @@ int housedcc_pidcc_stop (int address, int emergency, int direction) {
     return housedcc_pidcc_write (command, l);
 }
 
-int housedcc_pidcc_function (int address, int instruction) {
+const char *housedcc_pidcc_function (int address, int instruction) {
 
-    if (address >= 128) return 0; // Not supported yet.
-    if (PiDccState == '*') return 0; // Failed.
+    if ((address <= 0) || (address >= 128)) return "address not supported";
+    if (PiDccState == '*') return "queue full"; // Failed.
 
     char command[32];
     int l = snprintf (command, sizeof(command), "send %d %d",
@@ -323,10 +323,10 @@ int housedcc_pidcc_function (int address, int instruction) {
     return housedcc_pidcc_write (command, l);
 }
 
-int housedcc_pidcc_accessory (int address, int device, int value) {
+const char *housedcc_pidcc_accessory (int address, int device, int value) {
 
-    if (address >= 512) return 0;
-    if (PiDccState == '*') return 0; // Failed.
+    if ((address <= 0) || (address >= 512)) return "address not supported";
+    if (PiDccState == '*') return "queue full";
 
     value = value ? 0x08 : 0;
     device &= 0x0f;

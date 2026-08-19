@@ -89,9 +89,9 @@
  *
  *    Return 1 if a locomotive with that ID exists, 0 otherwise.
  *
- * int housedcc_fleet_move (const char *id, int speed);
- * int housedcc_fleet_stop (const char *id, int emergency);
- * int housedcc_fleet_set  (const char *id, const char *name, int state);
+ * const char *housedcc_fleet_move (const char *id, int speed);
+ * const char *housedcc_fleet_stop (const char *id, int emergency);
+ * const char *housedcc_fleet_set (const char *id, const char *name, int state);
  *
  *    Control one locomotive's movements and devices. Typical devices are
  *    locomotive lights, sound, etc. The list of devices depend on the model
@@ -103,7 +103,7 @@
  *    The explicit stop command has an emergency option to cut power
  *    immediately. It is otherwise similar to speed 0.
  *
- *    These functions return 0 on error, 1 on success.
+ *    These functions return an error message on failure, 0 on success.
  *
  * void housedcc_fleet_stopped (int emergency);
  *
@@ -387,13 +387,13 @@ static const char *housedcc_fleet_direction_name (int dirorspeed) {
     return (dirorspeed >= 0)?"FORWARD":"REVERSE";
 }
 
-static int housedcc_vehicle_move (DccVehicle *vehicle) {
+static const char *housedcc_vehicle_move (DccVehicle *vehicle) {
 
     vehicle->deadline = time(0) + 7; // TBD: make it configurable
     return housedcc_pidcc_move (vehicle->address, vehicle->step);
 }
 
-static int housedcc_vehicle_stop (DccVehicle *vehicle, int emergency) {
+static const char *housedcc_vehicle_stop (DccVehicle *vehicle, int emergency) {
 
     houselog_event ("VEHICLE", vehicle->id, "STOP",
                     emergency?"EMERGENCY BREAK":"STANDARD BREAK");
@@ -403,8 +403,8 @@ static int housedcc_vehicle_stop (DccVehicle *vehicle, int emergency) {
     return housedcc_pidcc_stop (vehicle->address, emergency, dir);
 }
 
-static int housedcc_vehicle_function (DccVehicle *vehicle,
-                                      int function, int state) {
+static const char *housedcc_vehicle_function (DccVehicle *vehicle,
+                                              int function, int state) {
 
     short mask = 1 << function;
     if (state)
@@ -427,7 +427,7 @@ static int housedcc_vehicle_function (DccVehicle *vehicle,
        instruction += (mask >> 9) & 0xf; // F9 to F12
 
     } else {
-       return 0; // Invalid auxiliary function index.
+       return "invalid function code";
     }
 
     // Remember the current commanded state.
@@ -496,8 +496,7 @@ const char *housedcc_fleet_dcc_speed (int adr, int step) {
         // Lower than any configured speed. Report an arbitrary slow speed.
         if (i < 0) vehicle->speed = vehicle->dccdirection * RESTRICTED_SPEED;
     }
-    if (housedcc_vehicle_move (vehicle) <= 0) return "DCC error";
-    return 0;
+    return housedcc_vehicle_move (vehicle);
 }
 
 const char *housedcc_fleet_dcc_stop (int adr, int emergency) {
@@ -505,9 +504,7 @@ const char *housedcc_fleet_dcc_stop (int adr, int emergency) {
     int cursor = housedcc_fleet_find_address (adr);
     if (cursor < 0) return "unknown locomotive";
 
-    if (housedcc_vehicle_stop (Vehicles+cursor, emergency) <= 0)
-        return "DCC error";
-    return 0;
+    return housedcc_vehicle_stop (Vehicles+cursor, emergency);
 }
 
 const char *housedcc_fleet_dcc_set (int adr, int function, int state) {
@@ -531,19 +528,17 @@ const char *housedcc_fleet_dcc_set (int adr, int function, int state) {
                     "SET", "DCC %d (%s) TO %s",
                     function, model->functions[i].name, state?"ON":"OFF");
 
-    if (housedcc_vehicle_function (Vehicles+cursor, index, state) <= 0)
-        return "DCC error";
-    return 0;
+    return housedcc_vehicle_function (Vehicles+cursor, index, state);
 }
 
-int housedcc_fleet_move (const char *id, int speed) {
+const char *housedcc_fleet_move (const char *id, int speed) {
 
     int cursor = housedcc_fleet_find (id);
-    if (cursor < 0) return 0;
+    if (cursor < 0) return "unknown locomotive";
 
     DccVehicle *vehicle = Vehicles + cursor;
     DccModel *model = vehicle->model;
-    if (!model) return 0;
+    if (!model) return "unknown locomotive model";
 
     if (speed != vehicle->speed) {
         // Convert the 'prototype' speed to a DCC step.
@@ -557,7 +552,7 @@ int housedcc_fleet_move (const char *id, int speed) {
               break;
            }
         }
-        if (step == 0) return 0;
+        if (step == 0) return "undefined speed";
 
         if (step < -31) step = -31;
         else if (step > 31) step = 31;
@@ -583,10 +578,10 @@ int housedcc_fleet_move (const char *id, int speed) {
     return housedcc_vehicle_move (vehicle);
 }
 
-int housedcc_fleet_stop (const char *id, int emergency) {
+const char *housedcc_fleet_stop (const char *id, int emergency) {
 
     int cursor = housedcc_fleet_find (id);
-    if (cursor < 0) return 0;
+    if (cursor < 0) return "unknown locomotive";
 
     return housedcc_vehicle_stop (Vehicles+cursor, emergency);
 }
@@ -600,25 +595,25 @@ void housedcc_fleet_stopped (int emergency) {
     }
 }
 
-int housedcc_fleet_set (const char *id, const char *name, int state) {
+const char *housedcc_fleet_set (const char *id, const char *name, int state) {
 
     int cursor = housedcc_fleet_find (id);
-    if (cursor < 0) return 0;
+    if (cursor < 0) return "unknown locomotive";
 
     DccModel *model = Vehicles[cursor].model;
-    if (!model) return 0; // No known DCC functions
+    if (!model) return "unknown locomotive model"; // No known DCC functions
 
     int i;
     for (i = 0; i < model->count; ++i) {
         if (!strcmp (name, model->functions[i].name)) break;
     }
-    if (i >= model->count) return 0; // No such functions.
+    if (i >= model->count) return "unknown function";
 
     houselog_event ("VEHICLE", Vehicles[cursor].id,
                     "SET", "%s TO %s", name, state?"ON":"OFF");
 
     int index = model->functions[i].index;
-    if (index < 0) return 0; // Invalid function.
+    if (index < 0) return "invalid function";
 
     return housedcc_vehicle_function (Vehicles+cursor, index, state);
 }
