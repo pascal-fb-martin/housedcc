@@ -137,12 +137,15 @@ Query the current configuration. The optional `known` parameter has the same sem
 Change the state of a switch or signal. The status for these accessories is reported using the `/dcc/status` request. Work in progress (DCC decoders are expensive).
 
 ```
-/dcc/raw/direction?adr=NUMBER&dir="forward"|"reverse"
+/dcc/raw/direction?adr=NUMBER&dir="forward"|"reverse"|"backward"|1|-1
 /dcc/raw/speed?adr=NUMBER&step=NUMBER
+/dcc/raw/stop?adr=NUMBER
 /dcc/raw/set?adr=NUMBER&fct=NUMBER&state=0|1
 ```
 
 These URLs are meant to allow interfacing with a DCC aware train control software. The locomotive must be listed in the configuration and only the functions named in the model can be operated.
+
+A step number of 0 is equivalent to a stop. A negative step number is equivalent to an emergency stop.
 
 ## Configuration
 

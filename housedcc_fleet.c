@@ -23,12 +23,13 @@
  * SYNOPSYS:
  *
  * This module handles the control of individual vehicles:
- * - Maintain a list of all vehicles and their properties.
+ * - Maintain a list of all vehicles, their state and properties.
  * - Move a locomotive forward, backward or stop.
- * - control vehicles functions.
+ * - Control vehicles functions.
  *
- * Its main purpose is to convert a locomotive ID to a DCC address, a
- * device ID to a function code and a speed (Km/h or Mph) to a DCC step value.
+ * Its main purpose is to hide the subjacent DCC system: it converts
+ * a locomotive ID to a DCC address, a device ID to a function code and
+ * a prototype speed (Km/h or Mph) to a DCC step value.
  *
  * A vehicle ID is a string, up to 10 characters, that should typically start
  * with a mark (up to 4 alphabetical characters) followed by a vehicle number
@@ -39,6 +40,23 @@
  * has no traction power, but may have a DCC decoder for functions. The
  * vehicle model indicates if the unit is a locomotive, a DCC equipped car,
  * or a car with no DCC onboard.
+ *
+ * This module now offers two API styles to control locomotives:
+ *
+ * - The standard API hides the DCC conventions: locomotives are identified
+ *   by their ID (railroad mark and engine number), speeds are expressed in
+ *   prototype speed and functions are identified by name. It does not matter
+ *   how the locomotive is actually controlled. If a new standard replaces
+ *   DCC, this API will hopefully not be impacted.
+ *
+ * - the DCC API uses raw DCC conventions: locomotives are identified by
+ *   their DCC addresses, speeds are expressed in DCC steps and functions
+ *   are identified by their DCC code. This is intended to allow control
+ *   from a DCC-aware model train control software.
+ *
+ * This module maintains its context consistent, regardless of the API used.
+ * It should support multiple clients controlling the same locomotives either
+ * way.
  *
  * const char *housedcc_fleet_initialize (int argc, const char **argv);
  *
@@ -111,9 +129,21 @@
  * const char *housedcc_fleet_dcc_direction (int adr, const char *direction);
  * const char *housedcc_fleet_dcc_speed (int adr, int step);
  * const char *housedcc_fleet_dcc_set (int adr, int function, int state);
+ * const char *housedcc_fleet_dcc_stop (int adr, int emergency);
  *
  *    These functions offer a raw DCC bypass, for an eventual control
  *    by DCC aware software. Return null or else an error message.
+ *
+ *    The direction must be "forward" or "reverse", but "backward",
+ *    a positive number or a negative number are also accepted.
+ *
+ *    A step of 0 (or negative) means stop (negative is emergency stop).
+ *
+ * NOTE:
+ *
+ * This module uses a specific naming convention: names starting with
+ * "housedcc_vehicle_" are private interfaces, typically the processing
+ * that is common to the standard and DCC APIs.
  */
 
 #include <string.h>
@@ -135,8 +165,9 @@
 
 #define DEBUG if (echttp_isdebug()) printf
 
-#define FUNCTION_MAX   16
-#define SPEED_STEP_MAX 28
+#define FUNCTION_MAX     16
+#define SPEED_STEP_MAX   28
+#define RESTRICTED_SPEED 15
 
 #define MODEL_SCALE_DEFAULT "N"
 
@@ -356,49 +387,30 @@ static const char *housedcc_fleet_direction_name (int dirorspeed) {
     return (dirorspeed >= 0)?"FORWARD":"REVERSE";
 }
 
-const char *housedcc_fleet_dcc_direction (int adr, const char *dir) {
+static int housedcc_vehicle_move (DccVehicle *vehicle) {
 
-    int cursor = housedcc_fleet_find_address (adr);
-    if (cursor < 0) return "unknown locomotive";
-
-    if (strsame (dir, "forward"))
-        Vehicles[cursor].dccdirection = 1;
-    else if (strsame (dir, "reverse"))
-        Vehicles[cursor].dccdirection = -1;
-    else
-        return "invalid direction";
-    return 0;
+    vehicle->deadline = time(0) + 7; // TBD: make it configurable
+    return housedcc_pidcc_move (vehicle->address, vehicle->step);
 }
 
-const char *housedcc_fleet_dcc_speed (int adr, int step) {
+static int housedcc_vehicle_stop (DccVehicle *vehicle, int emergency) {
 
-    int cursor = housedcc_fleet_find_address (adr);
-    if (cursor < 0) return "unknown locomotive";
+    houselog_event ("VEHICLE", vehicle->id, "STOP",
+                    emergency?"EMERGENCY BREAK":"STANDARD BREAK");
 
-    if ((step < 0) || (step >= 128)) return "invalid step";
-
-    DccVehicle *vehicle = Vehicles + cursor;
-    if (vehicle->step != step) {
-        const char *direction =
-            housedcc_fleet_direction_name (vehicle->dccdirection);
-
-        houselog_event ("VEHICLE", vehicle->id,
-                        "MOVE", "%s AT DCC STEP %d", direction, step);
-        vehicle->step = vehicle->dccdirection * step;
-    }
-    Vehicles[cursor].deadline = time(0) + 7; // TBD: make it configurable
-    if (housedcc_pidcc_move (vehicle->address, vehicle->step) <= 0)
-        return "DCC error";
-    return 0;
+    int dir = (vehicle->dccdirection >= 0)? 1 : 0;
+    housedcc_fleet_stationary (vehicle);
+    return housedcc_pidcc_stop (vehicle->address, emergency, dir);
 }
 
-static int housedcc_fleet_operate (int cursor, int function, int state) {
+static int housedcc_vehicle_function (DccVehicle *vehicle,
+                                      int function, int state) {
 
     short mask = 1 << function;
     if (state)
-       mask = Vehicles[cursor].functions | mask;
+       mask = vehicle->functions | mask;
     else
-       mask = Vehicles[cursor].functions & (~mask);
+       mask = vehicle->functions & (~mask);
 
     int instruction;
     if (function <= 4) { // F1 to F4, FL.
@@ -419,9 +431,83 @@ static int housedcc_fleet_operate (int cursor, int function, int state) {
     }
 
     // Remember the current commanded state.
-    Vehicles[cursor].functions = mask;
+    vehicle->functions = mask;
 
-    return housedcc_pidcc_function (Vehicles[cursor].address, instruction);
+    return housedcc_pidcc_function (vehicle->address, instruction);
+}
+
+const char *housedcc_fleet_dcc_direction (int adr, const char *dir) {
+
+    int cursor = housedcc_fleet_find_address (adr);
+    if (cursor < 0) return "unknown locomotive";
+
+    DccVehicle *vehicle = Vehicles + cursor;
+    int old = vehicle->dccdirection;
+
+    if (strsame (dir, "forward"))
+        vehicle->dccdirection = 1;
+    else if (strsame (dir, "reverse"))
+        vehicle->dccdirection = -1;
+    else if (strsame (dir, "backward"))
+        vehicle->dccdirection = -1;
+    else {
+        int value = atoi(dir);
+        if (value != 0) vehicle->dccdirection = (value > 0)?1:-1;
+        else return "invalid direction";
+    }
+    if ((vehicle->step != 0) && (vehicle->dccdirection != old))
+        housedcc_vehicle_stop (vehicle, 0);
+
+    return 0;
+}
+
+const char *housedcc_fleet_dcc_speed (int adr, int step) {
+
+    if (step <= 0) return housedcc_fleet_dcc_stop (adr, (step < 0));
+
+    int cursor = housedcc_fleet_find_address (adr);
+    if (cursor < 0) return "unknown locomotive";
+
+    if (step >= SPEED_STEP_MAX) {
+        if (step >= 128) return "invalid step";
+        return "unsupported step";
+    }
+
+    DccVehicle *vehicle = Vehicles + cursor;
+
+    if (abs(vehicle->step) != step) {
+        const char *direction =
+            housedcc_fleet_direction_name (vehicle->dccdirection);
+
+        houselog_event ("VEHICLE", vehicle->id,
+                        "MOVE", "%s AT DCC STEP %d", direction, step);
+        vehicle->step = vehicle->dccdirection * step;
+
+        // Remember an approximate prototype speed.
+        // This is used to report a raisonable speed to all clients.
+        DccModel *model = vehicle->model;
+        int i;
+        for (i = step-1; i >= 0; --i) {
+           if (model->speeds[i] > 0) {
+              vehicle->speed = vehicle->dccdirection * model->speeds[i];
+              break;
+           }
+        }
+        // Lower than any configured speed. Report an arbitrary slow speed.
+        if (i < 0) vehicle->speed = vehicle->dccdirection * RESTRICTED_SPEED;
+    }
+    if (housedcc_vehicle_move (vehicle) <= 0) return "DCC error";
+    return 0;
+}
+
+const char *housedcc_fleet_dcc_stop (int adr, int emergency) {
+
+    int cursor = housedcc_fleet_find_address (adr);
+    if (cursor < 0) return "unknown locomotive";
+
+    if (housedcc_vehicle_stop (Vehicles+cursor, emergency) <= 0)
+        return "DCC error";
+    return 0;
 }
 
 const char *housedcc_fleet_dcc_set (int adr, int function, int state) {
@@ -445,7 +531,7 @@ const char *housedcc_fleet_dcc_set (int adr, int function, int state) {
                     "SET", "DCC %d (%s) TO %s",
                     function, model->functions[i].name, state?"ON":"OFF");
 
-    if (housedcc_fleet_operate (cursor, index, state) <= 0)
+    if (housedcc_vehicle_function (Vehicles+cursor, index, state) <= 0)
         return "DCC error";
     return 0;
 }
@@ -479,8 +565,8 @@ int housedcc_fleet_move (const char *id, int speed) {
         if (vehicle->speed) {
             int existingsign = ((vehicle->speed) < 0)?-1:1;
             if (sign != existingsign) {
-               // The locomotive is reversing direction. DCC expect a stop
-               // command first.
+               // The locomotive is reversing direction. DCC expects
+               // a stop command first.
                int dir = (Vehicles[cursor].speed >= 0)? 1 : 0;
                housedcc_pidcc_stop (vehicle->address, 0, dir);
             }
@@ -494,8 +580,7 @@ int housedcc_fleet_move (const char *id, int speed) {
         vehicle->step = step;
         vehicle->dccdirection = (step >= 0)? 1 : -1;
     }
-    Vehicles[cursor].deadline = time(0) + 7; // TBD: make it configurable
-    return housedcc_pidcc_move (vehicle->address, vehicle->step);
+    return housedcc_vehicle_move (vehicle);
 }
 
 int housedcc_fleet_stop (const char *id, int emergency) {
@@ -503,12 +588,7 @@ int housedcc_fleet_stop (const char *id, int emergency) {
     int cursor = housedcc_fleet_find (id);
     if (cursor < 0) return 0;
 
-    houselog_event ("VEHICLE", Vehicles[cursor].id, "STOP",
-                    emergency?"EMERGENCY BREAK":"STANDARD BREAK");
-
-    int dir = (Vehicles[cursor].speed >= 0)? 1 : 0;
-    housedcc_fleet_stationary (Vehicles + cursor);
-    return housedcc_pidcc_stop (Vehicles[cursor].address, emergency, dir);
+    return housedcc_vehicle_stop (Vehicles+cursor, emergency);
 }
 
 void housedcc_fleet_stopped (int emergency) {
@@ -540,7 +620,7 @@ int housedcc_fleet_set (const char *id, const char *name, int state) {
     int index = model->functions[i].index;
     if (index < 0) return 0; // Invalid function.
 
-    return housedcc_fleet_operate (cursor, index, state);
+    return housedcc_vehicle_function (Vehicles+cursor, index, state);
 }
 
 static int housedcc_fleet_speeds (char *buffer, int size, DccModel *model) {
