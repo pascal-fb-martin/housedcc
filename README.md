@@ -25,6 +25,9 @@ The features of, and the commands accepted by, HouseDCC are basic: the design ca
 
 > There are two interfaces implemented by this service: control of vehicles (the fleet interface) and control of the signaling system (the signal interface). The signal interface is a future interface, most likely will be an extension of the control interface.
 
+> [!WARNING]
+> HouseDCC only supports short addressing (locomotives addresses 1 to 127) at this time.
+
 ## Installation
 
 * Install the OpenSSL development package(s).
@@ -135,6 +138,12 @@ Query the current configuration. The optional `known` parameter has the same sem
 ```
 
 Change the state of a switch or signal. The status for these accessories is reported using the `/dcc/status` request. Work in progress (DCC decoders are expensive).
+
+```
+/dcc/change/address?id=STRING&adr=NUMBER
+```
+
+Change the DCC address of the specified item. Only locomotive address changes are supported at this time. This is done in operation mode, program mode is not supported yet.
 
 ```
 /dcc/raw/direction?adr=NUMBER&dir="forward"|"reverse"|"backward"|1|-1

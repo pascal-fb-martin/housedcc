@@ -41,6 +41,10 @@
  *
  *    Export this module's current configuration to JSON format.
  *
+ * int housedcc_pidcc_valid_address (int address);
+ *
+ *    Return 1 if the address value is supported, 0 otherwise.
+ *
  * const char *housedcc_pidcc_move (int address, int speed);
  *
  *    Control one locomotive's movements.
@@ -65,6 +69,12 @@
  *    Return an error string on error, 0 otherwise.
  *
  * const char *housedcc_pidcc_function (int address, int instruction);
+ *
+ *    Control one vehicle's function devices (F0 to F4).
+ *
+ *    Return an error string on error, 0 otherwise.
+ *
+ * const char *housedcc_pidcc_change_address (int old, int new);
  *
  *    Control one vehicle's function devices (F0 to F4).
  *
@@ -121,6 +131,10 @@ static int PiDccBufferProducer = 0;
 
 static int housedcc_pidcc_enabled (void) {
     return (GpioPinA > 0) || (GpioPinB > 0);
+}
+
+int housedcc_pidcc_valid_address (int address) {
+    return (address > 0) && (address < 128);
 }
 
 static const char *housedcc_pidcc_write (const char *text, int length) {
@@ -283,7 +297,7 @@ const char *housedcc_pidcc_move (int address, int speed) {
                                   0x1b, 0xc, 0x1c, 0xd, 0x1d, // 20 21 22 23 24
                                   0xe, 0x1e, 0xf, 0x1f};      // 25 26 27 28
 
-    if ((address <= 0) || (address >= 128)) return "invalid address";
+    if (!housedcc_pidcc_valid_address(address)) return "address not supported";
     if (PiDccState == '*') return "queue full"; // Failed.
 
     char command[32];
@@ -300,7 +314,7 @@ const char *housedcc_pidcc_move (int address, int speed) {
 
 const char *housedcc_pidcc_stop (int address, int emergency, int direction) {
 
-    if ((address < 0) || (address >= 128)) return "address not supported";
+    if (!housedcc_pidcc_valid_address(address)) return "address not supported";
     // No state check: a stop is a safety command.
 
     // The direction determine which light is on (forward or reverse).
@@ -314,12 +328,23 @@ const char *housedcc_pidcc_stop (int address, int emergency, int direction) {
 
 const char *housedcc_pidcc_function (int address, int instruction) {
 
-    if ((address <= 0) || (address >= 128)) return "address not supported";
+    if (!housedcc_pidcc_valid_address(address)) return "address not supported";
     if (PiDccState == '*') return "queue full"; // Failed.
 
     char command[32];
     int l = snprintf (command, sizeof(command), "send %d %d",
                       address & 0x7f, instruction);
+    return housedcc_pidcc_write (command, l);
+}
+
+const char *housedcc_pidcc_change_address (int old, int new) {
+
+    if (!housedcc_pidcc_valid_address(old)) return "address not supported";
+    if (!housedcc_pidcc_valid_address(new)) return "new address not supported";
+
+    char command[48]; // SET CV1 (address 00 0000000)
+    int l = snprintf (command, sizeof(command),
+                      "send -p %d %d 0 %d", old & 0x7f, 0xec, new);
     return housedcc_pidcc_write (command, l);
 }
 

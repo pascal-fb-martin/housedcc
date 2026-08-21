@@ -25,9 +25,13 @@ void housedcc_pidcc_config (int pina, int pinb);
 const char *housedcc_pidcc_reload (void);
 int housedcc_pidcc_export (char *buffer, int size, const char *prefix);
 
+int housedcc_pidcc_valid_address (int address);
+
 const char *housedcc_pidcc_move (int address, int speed);
 const char *housedcc_pidcc_stop (int address, int emergency, int direction);
 const char *housedcc_pidcc_function (int address, int instruction);
+
+const char *housedcc_pidcc_change_address (int old, int new);
 
 const char *housedcc_pidcc_accessory (int address, int device, int value);
 

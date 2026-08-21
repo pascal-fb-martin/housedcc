@@ -107,7 +107,13 @@
  *
  * void housedcc_fleet_stopped (int emergency);
  *
- *    Tell this module that all vehicle were stopped (DCC STOP ALL).
+ *    Tell this module that all trains were stopped.
+ *
+ * const char *housedcc_fleet_change_address (const char *id, int address);
+ *
+ *    Change the DCC address of the specified locomotive. This trigger
+ *    the transmission of a DCC Configuration Variable Access packet to
+ *    alter CV1.
  *
  * void housedcc_fleet_reload (void);
  *
@@ -205,6 +211,9 @@ static DccVehicle Vehicles[DCC_ADDRESS_LIMIT];
 static int        VehiclesCount = 0;
 
 static int housedcc_fleet_valid_address (int address) {
+    // An address must be one that housedcc_pidcc.c supports,
+    // and within the limits of our configuration table.
+    if (!housedcc_pidcc_valid_address (address)) return 0;
     return (address > 0) && (address < DCC_ADDRESS_LIMIT);
 }
 
@@ -307,7 +316,7 @@ void housedcc_fleet_declare (const char *model, const char *scale,
     houselog_event ("MODEL", model, "CREATED", "");
 }
 
-void housedcc_fleet_stationary (DccVehicle *vehicle) {
+void housedcc_vehicle_stationary (DccVehicle *vehicle) {
     vehicle->step = 0;
     vehicle->speed = 0;
     vehicle->deadline = 0;
@@ -353,7 +362,7 @@ const char *housedcc_fleet_add (const char *id, const char *model, int address) 
         strtcpy (Vehicles[cursor].id, id, sizeof(Vehicles[0].id));
     }
     Vehicles[cursor].address = (short)address;
-    housedcc_fleet_stationary (Vehicles + cursor);
+    housedcc_vehicle_stationary (Vehicles + cursor);
     Vehicles[cursor].functions = 0;
     Vehicles[cursor].model = thismodel;
 
@@ -399,7 +408,7 @@ static const char *housedcc_vehicle_stop (DccVehicle *vehicle, int emergency) {
                     emergency?"EMERGENCY BREAK":"STANDARD BREAK");
 
     int dir = (vehicle->dccdirection >= 0)? 1 : 0;
-    housedcc_fleet_stationary (vehicle);
+    housedcc_vehicle_stationary (vehicle);
     return housedcc_pidcc_stop (vehicle->address, emergency, dir);
 }
 
@@ -591,8 +600,19 @@ void housedcc_fleet_stopped (int emergency) {
     houselog_event ("VEHICLE", "ALL", "STOPPED",
                     emergency?"EMERGENCY BREAK":"STANDARD BREAK");
     for (i = 0; i < VehiclesCount; ++i) {
-        if (Vehicles[i].id[0]) housedcc_fleet_stationary (Vehicles + i);
+        if (Vehicles[i].id[0]) housedcc_vehicle_stationary (Vehicles + i);
     }
+}
+
+const char *housedcc_fleet_change_address (const char *id, int address) {
+
+    int cursor = housedcc_fleet_find (id);
+    if (cursor < 0) return "unknown locomotive";
+
+    const char *error = housedcc_pidcc_change_address
+                            (Vehicles[cursor].address, address);
+    if (!error) Vehicles[cursor].address = address;
+    return error;
 }
 
 const char *housedcc_fleet_set (const char *id, const char *name, int state) {
@@ -725,7 +745,7 @@ int housedcc_fleet_background (time_t now) {
         if ((vehicle->deadline > 0) && (vehicle->deadline < now)) {
             if (vehicle->speed != 0)
                 houselog_event ("VEHICLE", vehicle->id, "STOP", "ON DEADLINE");
-            housedcc_fleet_stationary (vehicle);
+            housedcc_vehicle_stationary (vehicle);
             changed = 1;
         }
     }

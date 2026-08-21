@@ -136,12 +136,11 @@ static const char *dcc_move (const char *method, const char *uri,
     }
     int speedvalue = atoi (speed);
 
-    if (! housedcc_consist_move (id, speedvalue)) {
-        const char *error = housedcc_fleet_move (id, speedvalue);
-        if (error) {
-            echttp_error (404, error);
-            return "";
-        }
+    const char *error = housedcc_consist_move (id, speedvalue);
+    if (error) error = housedcc_fleet_move (id, speedvalue);
+    if (error) {
+        echttp_error (404, error);
+        return "";
     }
     housestate_changed (LiveState);
     return dcc_status (method, uri, data, length);
@@ -244,28 +243,57 @@ static const char *dcc_stop (const char *method, const char *uri,
     const char *urgent = echttp_parameter_get("urgent");
 
     int emergency = urgent?atoi(urgent):0;
+    const char *error = 0;
 
     if (!id) {
-        // Since this is a command to all locomotives, we do not have
-        // a context to tell us what is the current direction of travel.
-        // Forward is the most reasonable assumption here.
-        const char *error = housedcc_pidcc_stop (0, emergency, 1);
-        if (error) {
-            echttp_error (500, error);
-            return "";
-        }
-        housedcc_fleet_stopped (emergency);
-        housedcc_consist_stopped ();
+        // A null id is a stop to all locomotives (and consists).
+        // Generate a broadcast stop message.
+        // There is no context to tell what is the current direction of travel
+        // and forward is the most reasonable assumption here.
 
-    } else if (! housedcc_consist_stop (id, emergency)) {
-
-        const char *error = housedcc_fleet_stop (id, emergency);
-        if (error) {
-            echttp_error (500, error);
-            return "";
+        error = housedcc_pidcc_stop (0, emergency, 1);
+        if (!error) {
+            housedcc_fleet_stopped (emergency);
+            housedcc_consist_stopped ();
         }
+    } else {
+        // An id may identify a consist or a locomotive. Try consist first
+        // because locomotive errors are good enough for consist, if ever.
+
+        error = housedcc_consist_stop (id, emergency);
+        if (error) error = housedcc_fleet_stop (id, emergency);
+    }
+
+    if (error) {
+        echttp_error (500, error);
+        return "";
     }
     housestate_changed (LiveState);
+    return dcc_status (method, uri, data, length);
+}
+
+static const char *dcc_change_address (const char *method, const char *uri,
+                                       const char *data, int length) {
+
+    const char *id = echttp_parameter_get("id");
+    const char *adr = echttp_parameter_get("adr");
+
+    if (!id) {
+        echttp_error (404, "missing locomotive ID");
+        return "";
+    }
+    if (!adr) {
+        echttp_error (404, "missing new address");
+        return "";
+    }
+
+    const char *error = housedcc_fleet_change_address (id, atoi(adr));
+    if (error) {
+        echttp_error (500, error);
+        return "";
+    }
+
+    housestate_changed (ConfigState);
     return dcc_status (method, uri, data, length);
 }
 
@@ -581,6 +609,8 @@ int main (int argc, const char **argv) {
     echttp_route_uri ("/dcc/raw/speed",     dcc_raw_speed);
     echttp_route_uri ("/dcc/raw/stop",      dcc_raw_stop);
     echttp_route_uri ("/dcc/raw/set",       dcc_raw_set);
+
+    echttp_route_uri ("/dcc/change/address", dcc_change_address);
 
     echttp_static_route ("/", "/usr/local/share/house/public");
     echttp_background (&dcc_background);

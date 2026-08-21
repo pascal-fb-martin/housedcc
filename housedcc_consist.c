@@ -66,28 +66,27 @@
  *
  *    Reload the list of consists from a saved configuration.
  *
- * int housedcc_consist_move (const char *id, int speed);
+ * const char *housedcc_consist_move (const char *id, int speed);
  *
- *    Control a consist's or locomotive's movements.
+ *    Control a consist's movements. The id parameter must denote an
+ *    existing consist.
  *
  *    A positive speed means forward movement, a negative speed means reverse
  *    movement, while a speed in the range [-1, 1] means stop.
  *
- *    Movement is authorized if:
- *    - The ID denotes an existing consist.
- *    - The ID denotes a known locomotive that is part of a consist. In that
- *      case the command applies to the consist.
+ *    This function returns 0 on success, an error message on failure.
  *
- *    This function returns 1 if the ID exists (locomotive or consist),
- *    0 otherwise.
+ * const char *housedcc_consist_stop (const char *id, int emergency);
  *
- * int housedcc_consist_stop (const char *id, int emergency);
+ *    Stop the designed consist. If emergency is true, cut power immediately.
+ *    The id parameter must denotes an existing consist.
  *
- *    Step the designed consist. If emergency is true, cut power immediately.
+ *    This function returns 0 on success, an error message on failure.
  *
  * void housedcc_consist_stopped (void);
  *
- *    Tell this module that all vehicles were stopped (DCC STOP ALL)
+ *    Tell that all locomotives (and therefore consists) were stopped. This
+ *    is typically the result of a stop all (null ID).
  *
  * void housedcc_consist_periodic (time_t now);
  *
@@ -145,14 +144,14 @@ const char *housedcc_consist_reload (void) {
     return 0;
 }
 
-int housedcc_consist_move (const char *id, int speed) {
+const char *housedcc_consist_move (const char *id, int speed) {
     // TBD
-    return 0;
+    return "not implemented";
 }
 
-int housedcc_consist_stop (const char *id, int emergency) {
+const char *housedcc_consist_stop (const char *id, int emergency) {
     // TBD
-    return 0;
+    return "not implemented";
 }
 
 void housedcc_consist_stopped (void) {
