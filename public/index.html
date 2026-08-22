@@ -5,6 +5,7 @@
 <script>
 
 var DccLastStatus = 0;
+var DccChangeAddressDialog;
 
 function newAction (vehicle, text, command, state) {
     var button = document.createElement("button");
@@ -31,11 +32,35 @@ function dccCommand (url) {
     var command = new XMLHttpRequest();
     command.open("GET", url);
     command.onreadystatechange = function () {
-        if (command.readyState === 4 && command.status === 200) {
-            dccShowStatus (JSON.parse(command.responseText));
+        if (command.readyState === 4) {
+            if (command.status === 200)
+                dccShowStatus (JSON.parse(command.responseText));
+            else if (command.status / 100 >= 4)
+                window.alert ('Error '+command.status+': '+command.statusText);
         }
     }
     command.send(null);
+}
+
+function dccChangeAddressAction () {
+    if (DccChangeAddressDialog.returnValue !== 'submit') return;
+    const form = DccChangeAddressDialog.querySelector ('form');
+    const data = new FormData (form);
+    const vehicle = DccChangeAddressDialog.getAttribute('resourceId');
+    const newadr = data.get ('newaddress');
+    console.log ('Locomotive '+vehicle+': address changed to '+newadr);
+    dccCommand ('/dcc/change/address?id='+vehicle+'&adr='+newadr);
+}
+
+function dccChangeAddress () {
+    DccChangeAddressDialog = document.getElementById('changeaddress');
+    const vehicle = this.resourceId;
+    const address = this.resourceState;
+    document.getElementById('chglocoadrid').innerHTML = 'Locomotive: '+vehicle;
+    document.getElementById('chglocoadrold').innerHTML = 'Current Address: '+address;
+    DccChangeAddressDialog.addEventListener('close', dccChangeAddressAction);
+    DccChangeAddressDialog.setAttribute('resourceId', vehicle);
+    DccChangeAddressDialog.showModal();
 }
 
 function dccSetDevice () {
@@ -61,7 +86,7 @@ function dccStopAll () {
 }
 
 function dccSortVehicle (a, b) {
-    return a.address > b.address;
+    return a.id > b.id;
 }
 
 function dccShowVehicles (response) {
@@ -133,6 +158,7 @@ function dccShowVehicles (response) {
                                                dccSpeed,
                                                vehicle.speeds[j]));
             }
+            column.appendChild (newAction (vehicle.id, "CHANGE", dccChangeAddress, vehicle.address));
             row.appendChild(column);
         }
     }
@@ -212,6 +238,19 @@ window.onload = function() {
    </section>
    </article>
    </main>
+
+   <dialog id="changeaddress" style="border-radius: 11px; border: 3px solid #2f2f2f; background-color: #FFFFFF; opacity: 1">
+     <form method="dialog">
+       <h2>Change Locomotive Address</h2>
+       <h3 id="chglocoadrid">Locomotive</h3>
+       <h3 id="chglocoadrold">Current Address</h3>
+       <label>New Address: <input type="text" name="newaddress"></label>
+       <menu>
+         <button value="cancel">Cancel</button>
+         <button value="submit">Submit</button>
+       </menu>
+     </form>
+   </dialog>
 </body>
 </html>
 

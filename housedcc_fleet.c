@@ -609,9 +609,16 @@ const char *housedcc_fleet_change_address (const char *id, int address) {
     int cursor = housedcc_fleet_find (id);
     if (cursor < 0) return "unknown locomotive";
 
-    const char *error = housedcc_pidcc_change_address
-                            (Vehicles[cursor].address, address);
-    if (!error) Vehicles[cursor].address = address;
+    DccVehicle *vehicle = Vehicles + cursor;
+    if (vehicle->address == address) return 0; // No change, no error.
+    int i;
+    for (i = 0; i < VehiclesCount; ++i) {
+        if (Vehicles[i].address == address) return "address already in use";
+    }
+
+    const char *error =
+                   housedcc_pidcc_change_address (vehicle->address, address);
+    if (!error) vehicle->address = address;
     return error;
 }
 
